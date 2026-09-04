@@ -15,3 +15,14 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
+
+# C# / .NET build folders
+bin/
+obj/
+
+# IDE and editor settings (Visual Studio, VS Code, Rider)
+.vs/
+.vscode/
+.idea/
+*.userprefs
+*.csproj.user
