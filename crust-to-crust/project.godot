@@ -13,7 +13,6 @@ config_version=5
 config/name="Crust-to-Crust"
 run/main_scene="uid://dyel3ycgc2m0t"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
-config/icon="res://icon.svg"
 
 [display]
 
