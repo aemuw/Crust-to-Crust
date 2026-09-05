@@ -2,18 +2,17 @@
 
 [ext_resource type="Script" uid="uid://q2bn60fcod5d" path="res://Scripts/Coin.cs" id="1_nq8s2"]
 
-[sub_resource type="SphereMesh" id="SphereMesh_3mj47"]
-radius = 0.15
-height = 0.3
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_3mj47"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_3mj47"]
 
 [node name="Coin" type="Area2D" unique_id=1620736995]
 script = ExtResource("1_nq8s2")
 
-[node name="MeshInstance2D" type="MeshInstance2D" parent="." unique_id=434125611]
-modulate = Color(1, 1, 0, 1)
-mesh = SubResource("SphereMesh_3mj47")
-
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1796047943]
-shape = SubResource("CircleShape2D_3mj47")
+shape = SubResource("RectangleShape2D_3mj47")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=639055489]
+offset_left = -10.0
+offset_top = -10.0
+offset_right = 10.0
+offset_bottom = 10.0
+color = Color(1, 1, 0, 1)

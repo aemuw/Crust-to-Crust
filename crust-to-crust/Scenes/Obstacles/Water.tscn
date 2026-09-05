@@ -6,6 +6,7 @@
 size = Vector2(50, 50)
 
 [node name="Water" type="Area2D" unique_id=1405389156]
+collision_layer = 4
 script = ExtResource("1_qgg15")
 
 [node name="ColorRect" type="ColorRect" parent="." unique_id=1378781021]
