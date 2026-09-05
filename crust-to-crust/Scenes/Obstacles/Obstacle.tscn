@@ -5,7 +5,8 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_3mj47"]
 size = Vector2(50, 50)
 
-[node name="Obstacle" type="Area2D" unique_id=994363422]
+[node name="Obstacle" type="Area2D" unique_id=994363422 groups=["Obstacle"]]
+collision_layer = 2
 script = ExtResource("1_1qxsq")
 
 [node name="ColorRect" type="ColorRect" parent="." unique_id=297186236]
