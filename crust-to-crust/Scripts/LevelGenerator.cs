@@ -3,7 +3,7 @@ using Godot;
 public partial class LevelGenerator : Node2D
 {
 	[Export] private PackedScene obstacleScene;
-	private float[] lanes = { -300f, -100f, 100f, 300f };
+	private float[] lanes = { -225f, -75f, 75f, 225f };
 	private float spawnTimer = 0f;
 	[Export] private float spawnInterval = 1.5f;
 	

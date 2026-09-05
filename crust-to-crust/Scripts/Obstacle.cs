@@ -7,7 +7,7 @@ public partial class Obstacle : Area2D
 	public override void _Process(double delta)
 	{
 		Position += new Vector2(0, -speed * (float)delta);
-		if (Position.Y < -200f)
+		if (Position.Y < -500f)
 			QueueFree();
 	}
 }
