@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://dyel3ycgc2m0t"]
+
+[ext_resource type="Script" uid="uid://b6a7qx2wbrg0s" path="res://Scripts/LevelGenerator.cs" id="1_idj7w"]
+[ext_resource type="PackedScene" uid="uid://bvav8sxdg40sb" path="res://Scenes/Obstacles/Obstacle.tscn" id="2_kln2b"]
+
+[node name="Main" type="Node2D" unique_id=1929344963]
+script = ExtResource("1_idj7w")
+obstacleScene = ExtResource("2_kln2b")

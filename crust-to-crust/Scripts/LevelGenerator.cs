@@ -13,7 +13,7 @@ public partial class LevelGenerator : Node2D
 		if (spawnTimer >= spawnInterval)
 		{
 			spawnTimer = 0f;
-			SpawnObstacles();
+			SpawnObstacle();
 		}
 	}
 	
@@ -26,8 +26,7 @@ public partial class LevelGenerator : Node2D
 		float spawnX = lanes[randomLaneIndex];
 		Vector2 spawnPosition = new Vector2(spawnX, 1000f);
 		
-		Node2 obstacle = (Node2D)obstacleScene.Instantiate();
-		obstacle.Position = spawnPosition;
+		Node2D obstacle = (Node2D)obstacleScene.Instantiate();		obstacle.Position = spawnPosition;
 		GetTree().CurrentScene.AddChild(obstacle);
 	}
 }
