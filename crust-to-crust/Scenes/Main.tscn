@@ -3,13 +3,67 @@
 [ext_resource type="Script" uid="uid://b6a7qx2wbrg0s" path="res://Scripts/LevelGenerator.cs" id="1_idj7w"]
 [ext_resource type="PackedScene" uid="uid://bvav8sxdg40sb" path="res://Scenes/Obstacles/Obstacle.tscn" id="2_kln2b"]
 [ext_resource type="PackedScene" uid="uid://cme1hsg5dacv1" path="res://Scenes/Player/Player.tscn" id="3_kln2b"]
-[ext_resource type="PackedScene" uid="uid://ccjjaufyefsd1" path="res://Scenes/Obstacles/Water.tscn" id="3_rgh2o"]
+[ext_resource type="Script" uid="uid://cbucycg4poyh3" path="res://Scripts/Hud.cs" id="4_rgh2o"]
 
 [node name="Main" type="Node2D" unique_id=1929344963]
 script = ExtResource("1_idj7w")
 obstacleScene = ExtResource("2_kln2b")
-waterScene = ExtResource("3_rgh2o")
 
 [node name="Player" parent="." unique_id=668123400 instance=ExtResource("3_kln2b")]
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2092942518]
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=2071051683]
+process_mode = 3
+script = ExtResource("4_rgh2o")
+
+[node name="Control" type="Control" parent="HUD" unique_id=1342979488]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -576.0
+offset_top = -324.0
+offset_right = -576.0
+offset_bottom = -324.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="StatsContainer" type="VBoxContainer" parent="HUD/Control" unique_id=1474978096]
+layout_mode = 1
+offset_right = 104.0
+offset_bottom = 50.0
+
+[node name="ScoreLabel" type="Label" parent="HUD/Control/StatsContainer" unique_id=1592489983]
+layout_mode = 2
+text = "Монети: 0"
+
+[node name="DepthLabel" type="Label" parent="HUD/Control/StatsContainer" unique_id=1073085325]
+layout_mode = 2
+text = "Глибина: 0 м"
+
+[node name="GameOverPanel" type="Panel" parent="HUD/Control" unique_id=1267247231]
+visible = false
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="GAME OVER" type="Label" parent="HUD/Control/GameOverPanel" unique_id=2933221]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+text = "GAME OVER"
+
+[node name="RestartButton" type="Button" parent="HUD/Control/GameOverPanel" unique_id=1343739295]
+layout_mode = 0
+offset_right = 8.0
+offset_bottom = 8.0
+text = "Cпробувати знову"
+
+[node name="HeatLabel" type="Label" parent="HUD/Control" unique_id=185354215]
+visible = false
+layout_mode = 0
+offset_right = 97.0
+offset_bottom = 23.0
+theme_override_colors/font_color = Color(1, 0.120000005, 0.120000005, 1)
+text = "ЗОНА ЯДРА!"
