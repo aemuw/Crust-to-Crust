@@ -29,6 +29,9 @@ public partial class LevelGenerator : Node2D
 	public float CurrentDepth = 0f;
 	[Export] public float FallSpeed = 500f;
 
+	public float CurrentDepth = 0f;
+	[Export] public float FallSpeed = 500f;
+
 	public override void _Ready()
 	{
 		nextWaterInterval = (float)GD.RandRange(5.0, 10.0);
@@ -57,8 +60,8 @@ public partial class LevelGenerator : Node2D
 	public override void _Process(double delta)
 	{
 		CurrentDepth += FallSpeed * (float)delta;
-		FallSpeed += 10f * (float)delta; 
-
+		FallSpeed += 10f * (float)delta;
+		
 		obstacleTimer += (float)delta;
 		if (obstacleTimer >= obstacleInterval)
 		{
@@ -74,29 +77,31 @@ public partial class LevelGenerator : Node2D
 			SpawnFromPool(waterPool);
 		}
 
-		coinTimer += (float)delta;
-		if (coinTimer >= nextCoinInterval)
-		{
-			coinTimer = 0f;
-			nextCoinInterval = (float)GD.RandRange(1.0, 3.0);
-			SpawnFromPool(coinPool);
-		}
+	private void SpawnObstacle()
+	{
+		if (obstacleScene == null) 
+			return;
+		
+		int randomLaneIndex = GD.RandRange(0, lanes.Length - 1);
+		Vector2 spawnPosition = new Vector2(lanes[randomLaneIndex], 1000f);
+		
+		Node2D obstacle = (Node2D)obstacleScene.Instantiate();
+		obstacle.Position = spawnPosition;
+		obstacle.Set("speed", FallSpeed);
+		GetTree().CurrentScene.AddChild(obstacle);
 	}
 
 	private void SpawnFromPool(List<Node2D> pool)
 	{
-		foreach (Node2D obj in pool)
-		{
-			if (GodotObject.IsInstanceValid(obj) && obj.ProcessMode == ProcessModeEnum.Disabled)
-			{
-				int randomLaneIndex = GD.RandRange(0, lanes.Length - 1);
-				obj.Position = new Vector2(lanes[randomLaneIndex], 1000f);
-				obj.Set("speed", FallSpeed);
-				
-				obj.Visible = true;
-				obj.ProcessMode = ProcessModeEnum.Inherit;
-				return;
-			}
-		}
+		if (waterScene == null)
+			return;
+		
+		int randomLaneIndex = GD.RandRange(0, lanes.Length - 1);
+		Vector2 spawnPosition = new Vector2(lanes[randomLaneIndex], 1000f);
+		
+		Node2D water = (Node2D)waterScene.Instantiate();
+		water.Position = spawnPosition;
+		water.Set("speed", FallSpeed);
+		GetTree().CurrentScene.AddChild(water);
 	}
 }

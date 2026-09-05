@@ -2,12 +2,10 @@ using Godot;
 
 public partial class Player : CharacterBody2D
 {
-	// Оскільки камера центрована на (0, 0), беремо координати напряму
 	private readonly float[] _lanes = { -300f, -100f, 100f, 300f };
 	private int _currentLaneIndex = 1;
 
 	[Export] public float MoveSpeed = 16f;
-	// Верхня третина відносно центру камери (від'ємний Y дивиться вгору)
 	[Export] public float FixedY = -200f;
 
 	[Export] public float MinBurnTime = 14f;
