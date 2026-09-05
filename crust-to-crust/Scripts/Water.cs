@@ -8,6 +8,9 @@ public partial class Water : Area2D
 	{
 		Position += new Vector2(0, -speed * (float)delta);
 		if (Position.Y < -500f)
-			QueueFree();	
+		{
+			Visible = false;
+			ProcessMode = ProcessModeEnum.Disabled;	
+		}	
 	}
 }

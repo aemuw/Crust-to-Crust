@@ -1,12 +1,13 @@
 using Godot;
 
-public partial class Obstacle : Area2D
+public partial class Coin : Area2D
 {
 	[Export] public float speed = 500f;
 	
 	public override void _Process(double delta)
 	{
 		Position += new Vector2(0, -speed * (float)delta);
+		
 		if (Position.Y < -500f)
 		{
 			Visible = false;

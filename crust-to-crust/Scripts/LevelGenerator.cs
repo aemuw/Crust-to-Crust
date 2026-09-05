@@ -1,9 +1,19 @@
 using Godot;
+using System.Collections.Generic;
 
 public partial class LevelGenerator : Node2D
 {
 	[Export] private PackedScene obstacleScene;
 	[Export] private PackedScene waterScene;
+	[Export] private PackedScene coinScene; 
+
+	[Export] public int ObstaclePoolSize = 10;
+	[Export] public int WaterPoolSize = 5;
+	[Export] public int CoinPoolSize = 15;
+
+	private List<Node2D> obstaclePool = new List<Node2D>();
+	private List<Node2D> waterPool = new List<Node2D>();
+	private List<Node2D> coinPool = new List<Node2D>();
 
 	private float[] lanes = { -225f, -75f, 75f, 225f };
 
@@ -12,6 +22,12 @@ public partial class LevelGenerator : Node2D
 
 	private float waterTimer = 0f;
 	private float nextWaterInterval = 5f;
+	
+	private float coinTimer = 0f;
+	private float nextCoinInterval = 2f;
+
+	public float CurrentDepth = 0f;
+	[Export] public float FallSpeed = 500f;
 
 	public float CurrentDepth = 0f;
 	[Export] public float FallSpeed = 500f;
@@ -19,6 +35,26 @@ public partial class LevelGenerator : Node2D
 	public override void _Ready()
 	{
 		nextWaterInterval = (float)GD.RandRange(5.0, 10.0);
+		nextCoinInterval = (float)GD.RandRange(1.0, 3.0); 
+
+		InitializePool(obstacleScene, ObstaclePoolSize, obstaclePool);
+		InitializePool(waterScene, WaterPoolSize, waterPool);
+		InitializePool(coinScene, CoinPoolSize, coinPool);
+	}
+
+	private void InitializePool(PackedScene scene, int size, List<Node2D> pool)
+	{
+		if (scene == null) 
+			return;
+
+		for (int i = 0; i < size; i++)
+		{
+			Node2D obj = (Node2D)scene.Instantiate();
+			obj.Visible = false;
+			obj.ProcessMode = ProcessModeEnum.Disabled;
+			AddChild(obj);
+			pool.Add(obj);
+		}
 	}
 
 	public override void _Process(double delta)
@@ -30,17 +66,16 @@ public partial class LevelGenerator : Node2D
 		if (obstacleTimer >= obstacleInterval)
 		{
 			obstacleTimer = 0f;
-			SpawnObstacle();
+			SpawnFromPool(obstaclePool);
 		}
 
 		waterTimer += (float)delta;
 		if (waterTimer >= nextWaterInterval)
 		{
 			waterTimer = 0f;
-			nextWaterInterval = (float)GD.RandRange(5.0, 10.0); //наступна вода знову через 5-10 сек
-			SpawnWater();
+			nextWaterInterval = (float)GD.RandRange(5.0, 10.0);
+			SpawnFromPool(waterPool);
 		}
-	}
 
 	private void SpawnObstacle()
 	{
@@ -56,7 +91,7 @@ public partial class LevelGenerator : Node2D
 		GetTree().CurrentScene.AddChild(obstacle);
 	}
 
-	private void SpawnWater()
+	private void SpawnFromPool(List<Node2D> pool)
 	{
 		if (waterScene == null)
 			return;
