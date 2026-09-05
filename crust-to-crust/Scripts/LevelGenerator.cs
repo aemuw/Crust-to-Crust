@@ -7,13 +7,14 @@ public partial class LevelGenerator : Node2D
 
 	private float[] lanes = { -225f, -75f, 75f, 225f };
 
-	//таймер для перешкод
 	private float obstacleTimer = 0f;
 	[Export] private float obstacleInterval = 1.5f;
 
-	//таймер для води
 	private float waterTimer = 0f;
 	private float nextWaterInterval = 5f;
+
+	public float CurrentDepth = 0f;
+	[Export] public float FallSpeed = 500f;
 
 	public override void _Ready()
 	{
@@ -22,6 +23,9 @@ public partial class LevelGenerator : Node2D
 
 	public override void _Process(double delta)
 	{
+		CurrentDepth += FallSpeed * (float)delta;
+		FallSpeed += 10f * (float)delta;
+		
 		obstacleTimer += (float)delta;
 		if (obstacleTimer >= obstacleInterval)
 		{
@@ -48,6 +52,7 @@ public partial class LevelGenerator : Node2D
 		
 		Node2D obstacle = (Node2D)obstacleScene.Instantiate();
 		obstacle.Position = spawnPosition;
+		obstacle.Set("speed", FallSpeed);
 		GetTree().CurrentScene.AddChild(obstacle);
 	}
 
@@ -61,6 +66,7 @@ public partial class LevelGenerator : Node2D
 		
 		Node2D water = (Node2D)waterScene.Instantiate();
 		water.Position = spawnPosition;
+		water.Set("speed", FallSpeed);
 		GetTree().CurrentScene.AddChild(water);
 	}
 }
