@@ -4,7 +4,7 @@
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_3mj47"]
 
-[node name="Coin" type="Area2D" unique_id=1620736995]
+[node name="Coin" type="Area2D" unique_id=1620736995 groups=["Coin"]]
 collision_layer = 8
 script = ExtResource("1_nq8s2")
 
