@@ -17,7 +17,7 @@ offset_bottom = 32.0
 color = Color(0.64823073, 0.6482308, 0.64823073, 1)
 
 [node name="Hitbox" type="Area2D" parent="." unique_id=1195757259]
-collision_mask = 6
+collision_mask = 14
 
 [node name="hitbox" type="CollisionShape2D" parent="Hitbox" unique_id=579775726]
 shape = SubResource("RectangleShape2D_ihk4x")
