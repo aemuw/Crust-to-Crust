@@ -16,17 +16,22 @@ public partial class Player : CharacterBody2D
 	private float _currentBurnDuration = 0f;
 
 	private ColorRect _visualRect;
-
+	private Hud _hud;
+	private int _score = 0;
+	private LevelGenerator _levelGenerator;
+	
 	public override void _Ready()
 	{
 		Position = new Vector2(_lanes[_currentLaneIndex], FixedY);
 		_visualRect = GetNodeOrNull<ColorRect>("ColorRect");
-
 		Area2D hitbox = GetNodeOrNull<Area2D>("Hitbox");
 		if (hitbox != null)
 		{
 			hitbox.AreaEntered += OnAreaEntered;
 		}
+
+		_hud = GetNodeOrNull<Hud>("../HUD");
+		_levelGenerator = GetNodeOrNull<LevelGenerator>("..");
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
@@ -48,6 +53,8 @@ public partial class Player : CharacterBody2D
 
 	public override void _Process(double delta)
 	{
+		_hud?.UpdateDepth(_levelGenerator?.CurrentDepth ?? 0f);
+
 		float targetX = _lanes[_currentLaneIndex];
 		float newX = Mathf.Lerp(Position.X, targetX, (float)delta * MoveSpeed);
 		Position = new Vector2(newX, FixedY);
@@ -78,13 +85,15 @@ public partial class Player : CharacterBody2D
 		else if (area.IsInGroup("Coin") || area.Name.ToString().Contains("Coin"))
 		{
 			GD.Print("Монетка зібрана!");
-			// TODO: Пізніше тут додамо виклик HUD для збільшення рахунку
+			_score++;
+			_hud?.UpdateScore(_score);		
 		}
 	}
 
 	private void CatchFire()
 	{
-		if (_isOnFire) return;
+		if (_isOnFire) 
+			return;
 
 		_isOnFire = true;
 		_burnTimer = 0f;
@@ -117,6 +126,7 @@ public partial class Player : CharacterBody2D
 		SetProcessUnhandledKeyInput(false);
 
 		GetTree().Paused = true;
+		_hud?.ShowGameOver();
 
 		Tween deathTween = CreateTween();
 		deathTween.SetPauseMode(Tween.TweenPauseMode.Process);
