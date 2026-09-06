@@ -28,13 +28,22 @@ public partial class LevelGenerator : Node2D
 
 	public float CurrentDepth = 0f;
 	[Export] public float FallSpeed = 500f;
-
+	
+	[Export] public float CoreDepthPoint = 5000f;
+	[Export] public float TunnelLength = 10000f;
+	[Export] public float MinFallSpeed = 150f;
+	[Export] public float SurfaceHangDuration = 1.5f;
+	
+	private float _initialFallSpeed;
+	private bool _isHanging = false;
+	private float _hangTimer = 0f;
 
 	public override void _Ready()
 	{
+		_initialFallSpeed = FallSpeed;
 		nextWaterInterval = (float)GD.RandRange(5.0, 10.0);
 		nextCoinInterval = (float)GD.RandRange(1.0, 3.0); 
-
+		
 		InitializePool(obstacleScene, ObstaclePoolSize, obstaclePool);
 		InitializePool(waterScene, WaterPoolSize, waterPool);
 		InitializePool(coinScene, CoinPoolSize, coinPool);
@@ -57,8 +66,36 @@ public partial class LevelGenerator : Node2D
 
 	public override void _Process(double delta)
 	{
+		if (_isHanging)
+		{
+			_hangTimer += (float)delta;
+			if (_hangTimer >= SurfaceHangDuration)
+			{
+				_isHanging = false;
+				_hangTimer = 0f;
+				CurrentDepth = 0f;
+				FallSpeed = _initialFallSpeed;
+			}
+			return; //поки висить - нічого не спавниться
+		}
+
 		CurrentDepth += FallSpeed * (float)delta;
-		FallSpeed += 10f * (float)delta;
+
+		if (CurrentDepth < CoreDepthPoint)
+		{
+			FallSpeed += 10f * (float)delta; //прискорення, як і раніше
+		}
+		else if (CurrentDepth < TunnelLength)
+		{
+			FallSpeed -= 10f * (float)delta; //уповільнення після ядра
+			if (FallSpeed < MinFallSpeed)
+				FallSpeed = MinFallSpeed;
+		}
+		else
+		{
+			_isHanging = true;
+			FallSpeed = 0f;
+		}
 		
 		obstacleTimer += (float)delta;
 		if (obstacleTimer >= obstacleInterval)
