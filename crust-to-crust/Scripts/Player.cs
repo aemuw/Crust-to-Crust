@@ -62,10 +62,16 @@ public partial class Player : CharacterBody2D
 		if (_isOnFire)
 		{
 			_burnTimer += (float)delta;
+			float timeLeft = Mathf.Max(0f, _currentBurnDuration - _burnTimer);
+			_hud?.SetHeatWarning(true, timeLeft);
 			if (_burnTimer >= _currentBurnDuration)
 			{
 				Die();
 			}
+		}
+		else
+		{
+			_hud?.SetHeatWarning(false);
 		}
 	}
 
@@ -125,11 +131,7 @@ public partial class Player : CharacterBody2D
 		
 		SetProcessUnhandledKeyInput(false);
 
-		GetTree().Paused = true;
-		_hud?.ShowGameOver();
-
 		Tween deathTween = CreateTween();
-		deathTween.SetPauseMode(Tween.TweenPauseMode.Process);
 		deathTween.SetParallel(true);
 
 		float duration = 0.7f;
@@ -149,8 +151,8 @@ public partial class Player : CharacterBody2D
 
 		deathTween.Chain().TweenCallback(Callable.From(() =>
 		{
-			GetTree().Paused = false;
-			GetTree().ReloadCurrentScene();
+			GetTree().Paused = true;
+			_hud?.ShowGameOver();
 		}));
 	}
 }

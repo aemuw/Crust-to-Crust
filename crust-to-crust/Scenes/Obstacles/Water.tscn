@@ -5,7 +5,7 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_3mj47"]
 size = Vector2(50, 50)
 
-[node name="Water" type="Area2D" unique_id=1405389156]
+[node name="Water" type="Area2D" unique_id=1405389156 groups=["Water"]]
 collision_layer = 4
 script = ExtResource("1_qgg15")
 

@@ -76,23 +76,26 @@ public partial class LevelGenerator : Node2D
 				CurrentDepth = 0f;
 				FallSpeed = _initialFallSpeed;
 			}
-			return; //поки висить - нічого не спавниться
+			return; // поки дивиться що навколо на поверхні - пауза спавну
 		}
 
 		CurrentDepth += FallSpeed * (float)delta;
 
 		if (CurrentDepth < CoreDepthPoint)
 		{
-			FallSpeed += 10f * (float)delta; //прискорення, як і раніше
+			// Прискорення при наближенні до ядра
+			FallSpeed += 15f * (float)delta;
 		}
 		else if (CurrentDepth < TunnelLength)
 		{
-			FallSpeed -= 10f * (float)delta; //уповільнення після ядра
+			// Сповільнення після прольоту ядра у бік іншого кінця планети
+			FallSpeed -= 15f * (float)delta;
 			if (FallSpeed < MinFallSpeed)
 				FallSpeed = MinFallSpeed;
 		}
 		else
 		{
+			// Виліт з іншого кінця планети: зупиняється на секунду подивитися навколо
 			_isHanging = true;
 			FallSpeed = 0f;
 		}
@@ -121,16 +124,34 @@ public partial class LevelGenerator : Node2D
 		}
 	}
 
-	private void SpawnFromPool(PackedScene scene, List<Node2D> pool)	{
+	private void SpawnFromPool(PackedScene scene, List<Node2D> pool)
+	{
 		if (scene == null)
 			return;
-		
+
 		int randomLaneIndex = GD.RandRange(0, lanes.Length - 1);
 		Vector2 spawnPosition = new Vector2(lanes[randomLaneIndex], 1000f);
-		
-		Node2D water = (Node2D)scene.Instantiate();
-		water.Position = spawnPosition;
-		water.Set("speed", FallSpeed);
-		GetTree().CurrentScene.AddChild(water);
+
+		Node2D obj = null;
+		for (int i = 0; i < pool.Count; i++)
+		{
+			if (!pool[i].Visible)
+			{
+				obj = pool[i];
+				break;
+			}
+		}
+
+		if (obj == null)
+		{
+			obj = (Node2D)scene.Instantiate();
+			AddChild(obj);
+			pool.Add(obj);
+		}
+
+		obj.Position = spawnPosition;
+		obj.Visible = true;
+		obj.ProcessMode = ProcessModeEnum.Inherit;
+		obj.Set("speed", FallSpeed);
 	}
 }
