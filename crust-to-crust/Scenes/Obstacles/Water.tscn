@@ -1,20 +1,54 @@
 [gd_scene format=3 uid="uid://ccjjaufyefsd1"]
 
 [ext_resource type="Script" uid="uid://c4c07eo5bh4o0" path="res://Scripts/Water.cs" id="1_qgg15"]
+[ext_resource type="Script" uid="uid://c3x3a2r3b0r81" path="res://Scripts/WaterCaveWall.cs" id="2_wall"]
+[ext_resource type="Shader" uid="uid://b8t05w315v34p" path="res://water_shader.gdshader" id="3_shader"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_3mj47"]
-size = Vector2(50, 50)
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_water"]
+shader = ExtResource("3_shader")
 
 [node name="Water" type="Area2D" unique_id=1405389156 groups=["Water"]]
 collision_layer = 4
 script = ExtResource("1_qgg15")
 
-[node name="ColorRect" type="ColorRect" parent="." unique_id=1378781021]
-offset_left = -25.0
-offset_top = -25.0
-offset_right = 25.0
-offset_bottom = 25.0
-color = Color(0.11372549, 0.3372549, 0.9490196, 1)
+[node name="WaterPolygon" type="Polygon2D" parent="." unique_id=1378781021]
+material = SubResource("ShaderMaterial_water")
+color = Color(0.12, 0.68, 0.62, 0.72)
+polygon = PackedVector2Array(-80, -750, 80, -750, 80, 750, -80, 750)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=459187793]
-shape = SubResource("RectangleShape2D_3mj47")
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="." unique_id=459187793]
+polygon = PackedVector2Array(-80, -750, 80, -750, 80, 750, -80, 750)
+
+[node name="LeftWallArea" type="Area2D" parent="." unique_id=1378781030 groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("2_wall")
+
+[node name="LeftWallPolygon" type="Polygon2D" parent="LeftWallArea" unique_id=1378781031]
+color = Color(0.18, 0.16, 0.15, 1)
+polygon = PackedVector2Array(-180, -750, -80, -750, -80, 750, -180, 750)
+
+[node name="LeftCollision" type="CollisionPolygon2D" parent="LeftWallArea" unique_id=1378781032]
+polygon = PackedVector2Array(-180, -750, -80, -750, -80, 750, -180, 750)
+
+[node name="RightWallArea" type="Area2D" parent="." unique_id=1378781040 groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("2_wall")
+
+[node name="RightWallPolygon" type="Polygon2D" parent="RightWallArea" unique_id=1378781041]
+color = Color(0.18, 0.16, 0.15, 1)
+polygon = PackedVector2Array(180, -750, 80, -750, 80, 750, 180, 750)
+
+[node name="RightCollision" type="CollisionPolygon2D" parent="RightWallArea" unique_id=1378781042]
+polygon = PackedVector2Array(180, -750, 80, -750, 80, 750, 180, 750)
+
+[node name="LeftWallBorder" type="Line2D" parent="." unique_id=1378781050]
+points = PackedVector2Array(-80, -750, -80, 750)
+width = 4.0
+default_color = Color(0.45, 0.4, 0.35, 1)
+
+[node name="RightWallBorder" type="Line2D" parent="." unique_id=1378781051]
+points = PackedVector2Array(80, -750, 80, 750)
+width = 4.0
+default_color = Color(0.45, 0.4, 0.35, 1)

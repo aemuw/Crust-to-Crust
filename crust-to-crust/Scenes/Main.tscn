@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://ccjjaufyefsd1" path="res://Scenes/Obstacles/Water.tscn" id="3_v1gob"]
 [ext_resource type="PackedScene" uid="uid://j76siy3dxstc" path="res://Scenes/Obstacles/Coin.tscn" id="4_jw32o"]
 [ext_resource type="Script" uid="uid://cbucycg4poyh3" path="res://Scripts/Hud.cs" id="4_rgh2o"]
+[ext_resource type="FontFile" uid="uid://dxwrxt8e7bitq" path="res://BebasNeue-Regular.ttf" id="5_font"]
 
 [node name="Main" type="Node2D" unique_id=1929344963]
 script = ExtResource("1_idj7w")
@@ -14,6 +15,50 @@ waterScene = ExtResource("3_v1gob")
 coinScene = ExtResource("4_jw32o")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2092942518]
+
+[node name="TunnelWalls" type="Node2D" parent="." unique_id=311223344]
+
+[node name="LeftWall" type="ColorRect" parent="TunnelWalls" unique_id=311223345]
+offset_left = -700.0
+offset_top = -450.0
+offset_right = -350.0
+offset_bottom = 1200.0
+color = Color(0.18, 0.16, 0.15, 1)
+
+[node name="LeftWallBorder" type="ColorRect" parent="TunnelWalls" unique_id=311223346]
+offset_left = -354.0
+offset_top = -450.0
+offset_right = -350.0
+offset_bottom = 1200.0
+color = Color(0.45, 0.4, 0.35, 1)
+
+[node name="RightWall" type="ColorRect" parent="TunnelWalls" unique_id=311223347]
+offset_left = 350.0
+offset_top = -450.0
+offset_right = 700.0
+offset_bottom = 1200.0
+color = Color(0.18, 0.16, 0.15, 1)
+
+[node name="RightWallBorder" type="ColorRect" parent="TunnelWalls" unique_id=311223348]
+offset_left = 350.0
+offset_top = -450.0
+offset_right = 354.0
+offset_bottom = 1200.0
+color = Color(0.45, 0.4, 0.35, 1)
+
+[node name="SurfaceGround" type="ColorRect" parent="TunnelWalls" unique_id=311223349]
+offset_left = -700.0
+offset_top = -450.0
+offset_right = -350.0
+offset_bottom = -430.0
+color = Color(0.24, 0.42, 0.18, 1)
+
+[node name="SurfaceGroundRight" type="ColorRect" parent="TunnelWalls" unique_id=311223350]
+offset_left = 350.0
+offset_top = -450.0
+offset_right = 700.0
+offset_bottom = -430.0
+color = Color(0.24, 0.42, 0.18, 1)
 
 [node name="Player" parent="." unique_id=668123400 instance=ExtResource("3_kln2b")]
 
@@ -26,6 +71,9 @@ layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 8.0
+offset_right = 7.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -42,10 +90,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -150.0
-offset_top = -100.0
-offset_right = 150.0
-offset_bottom = 100.0
+offset_left = -170.0
+offset_top = -110.0
+offset_right = 170.0
+offset_bottom = 110.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -53,10 +101,11 @@ grow_vertical = 2
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_top = 30.0
-offset_bottom = 60.0
+offset_top = 25.0
+offset_bottom = 65.0
 grow_horizontal = 2
-theme_override_font_sizes/font_size = 28
+theme_override_fonts/font = ExtResource("5_font")
+theme_override_font_sizes/font_size = 42
 text = "GAME OVER"
 horizontal_alignment = 1
 
@@ -67,12 +116,69 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 40.0
-offset_top = -60.0
+offset_top = -65.0
 offset_right = -40.0
 offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 0
-text = "Спробувати знову"
+theme_override_fonts/font = ExtResource("5_font")
+theme_override_font_sizes/font_size = 26
+text = "TRY AGAIN"
+
+[node name="StartMenuPanel" type="Control" parent="HUD/Control" unique_id=987654321]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -130.0
+offset_right = 220.0
+offset_bottom = 130.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="HUD/Control/StartMenuPanel" unique_id=987654322]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 15.0
+offset_bottom = 75.0
+grow_horizontal = 2
+theme_override_fonts/font = ExtResource("5_font")
+theme_override_font_sizes/font_size = 54
+text = "CRUST TO CRUST"
+horizontal_alignment = 1
+
+[node name="SubTitle" type="Label" parent="HUD/Control/StartMenuPanel" unique_id=987654323]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 75.0
+offset_bottom = 105.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 0.85)
+theme_override_fonts/font = ExtResource("5_font")
+theme_override_font_sizes/font_size = 24
+text = "DIVE THROUGH THE PLANET'S CORE"
+horizontal_alignment = 1
+
+[node name="StartButton" type="Button" parent="HUD/Control/StartMenuPanel" unique_id=987654324]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 70.0
+offset_top = -80.0
+offset_right = -70.0
+offset_bottom = -25.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_fonts/font = ExtResource("5_font")
+theme_override_font_sizes/font_size = 32
+text = "START GAME"
 
 [node name="HeatLabel" type="Label" parent="HUD/Control" unique_id=185354215]
 visible = false
@@ -80,28 +186,33 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -100.0
+offset_left = -150.0
 offset_top = 20.0
-offset_right = 100.0
-offset_bottom = 46.0
+offset_right = 150.0
+offset_bottom = 56.0
 grow_horizontal = 2
-theme_override_colors/font_color = Color(1, 0.12, 0.12, 1)
-theme_override_font_sizes/font_size = 20
-text = "ЗОНА ЯДРА!"
+theme_override_colors/font_color = Color(1, 0.25, 0.1, 1)
+theme_override_fonts/font = ExtResource("5_font")
+theme_override_font_sizes/font_size = 32
+text = "CORE ZONE! FIND WATER!"
 horizontal_alignment = 1
 
 [node name="ScoreLabel" type="Label" parent="HUD/Control" unique_id=1592489983]
 layout_mode = 0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = 150.0
-offset_bottom = 46.0
-text = "Монети: 0"
+offset_left = 15.0
+offset_top = 12.0
+offset_right = 180.0
+offset_bottom = 44.0
+theme_override_fonts/font = ExtResource("5_font")
+theme_override_font_sizes/font_size = 28
+text = "COINS: 0"
 
 [node name="DepthLabel" type="Label" parent="HUD/Control" unique_id=1073085325]
 layout_mode = 0
-offset_left = 20.0
-offset_top = 50.0
-offset_right = 150.0
-offset_bottom = 76.0
-text = "Глибина: 0 м"
+offset_left = 15.0
+offset_top = 46.0
+offset_right = 180.0
+offset_bottom = 78.0
+theme_override_fonts/font = ExtResource("5_font")
+theme_override_font_sizes/font_size = 28
+text = "DEPTH: 0 M"
