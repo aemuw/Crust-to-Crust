@@ -2,157 +2,157 @@ using Godot;
 
 public partial class Player : CharacterBody2D
 {
-	private readonly float[] _lanes = { -225f, -75f, 75f, 225f };
-	private int _currentLaneIndex = 1;
+    private readonly float[] _lanes = { -225f, -75f, 75f, 225f };
+    private int _currentLaneIndex = 1;
 
-	[Export] public float MoveSpeed = 16f;
-	[Export] public float FixedY = -200f;
+    [Export] public float MoveSpeed = 16f;
+    [Export] public float FixedY = -200f;
 
-	[Export] public float MinBurnTime = 14f;
-	[Export] public float MaxBurnTime = 16f;
+    [Export] public float MinBurnTime = 14f;
+    [Export] public float MaxBurnTime = 16f;
 
-	private bool _isOnFire = false;
-	private float _burnTimer = 0f;
-	private float _currentBurnDuration = 0f;
+    private bool _isOnFire = false;
+    private float _burnTimer = 0f;
+    private float _currentBurnDuration = 0f;
 
-	private ColorRect _visualRect;
-	private Hud _hud;
-	private int _score = 0;
-	private LevelGenerator _levelGenerator;
-	
-	public override void _Ready()
-	{
-		Position = new Vector2(_lanes[_currentLaneIndex], FixedY);
-		_visualRect = GetNodeOrNull<ColorRect>("ColorRect");
-		Area2D hitbox = GetNodeOrNull<Area2D>("Hitbox");
-		if (hitbox != null)
-		{
-			hitbox.AreaEntered += OnAreaEntered;
-		}
+    private ColorRect _visualRect;
+    private Hud _hud;
+    private int _score = 0;
+    private LevelGenerator _levelGenerator;
+    
+    public override void _Ready()
+    {
+        Position = new Vector2(_lanes[_currentLaneIndex], FixedY);
+        _visualRect = GetNodeOrNull<ColorRect>("ColorRect");
+        Area2D hitbox = GetNodeOrNull<Area2D>("Hitbox");
+        if (hitbox != null)
+        {
+            hitbox.AreaEntered += OnAreaEntered;
+        }
 
-		_hud = GetNodeOrNull<Hud>("../HUD");
-		_levelGenerator = GetNodeOrNull<LevelGenerator>("..");
-	}
+        _hud = GetNodeOrNull<Hud>("../HUD");
+        _levelGenerator = GetNodeOrNull<LevelGenerator>("..");
+    }
 
-	public override void _UnhandledInput(InputEvent @event)
-	{
-		if (@event is not InputEventKey keyEvent || !keyEvent.Pressed || keyEvent.Echo)
-			return;
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (@event is not InputEventKey keyEvent || !keyEvent.Pressed || keyEvent.Echo)
+            return;
 
-		if (keyEvent.Keycode == Key.Left || keyEvent.Keycode == Key.A)
-		{
-			if (_currentLaneIndex > 0)
-				_currentLaneIndex--;
-		}
-		else if (keyEvent.Keycode == Key.Right || keyEvent.Keycode == Key.D)
-		{
-			if (_currentLaneIndex < _lanes.Length - 1)
-				_currentLaneIndex++;
-		}
-	}
+        if (keyEvent.Keycode == Key.Left || keyEvent.Keycode == Key.A)
+        {
+            if (_currentLaneIndex > 0)
+                _currentLaneIndex--;
+        }
+        else if (keyEvent.Keycode == Key.Right || keyEvent.Keycode == Key.D)
+        {
+            if (_currentLaneIndex < _lanes.Length - 1)
+                _currentLaneIndex++;
+        }
+    }
 
-	public override void _Process(double delta)
-	{
-		_hud?.UpdateDepth(_levelGenerator?.CurrentDepth ?? 0f);
+    public override void _Process(double delta)
+    {
+        _hud?.UpdateDepth(_levelGenerator?.CurrentDepth ?? 0f);
 
-		float targetX = _lanes[_currentLaneIndex];
-		float newX = Mathf.Lerp(Position.X, targetX, (float)delta * MoveSpeed);
-		Position = new Vector2(newX, FixedY);
+        float targetX = _lanes[_currentLaneIndex];
+        float newX = Mathf.Lerp(Position.X, targetX, (float)delta * MoveSpeed);
+        Position = new Vector2(newX, FixedY);
 
-		if (_isOnFire)
-		{
-			_burnTimer += (float)delta;
-			float timeLeft = Mathf.Max(0f, _currentBurnDuration - _burnTimer);
-			_hud?.SetHeatWarning(true, timeLeft);
-			if (_burnTimer >= _currentBurnDuration)
-			{
-				Die();
-			}
-		}
-		else
-		{
-			_hud?.SetHeatWarning(false);
-		}
-	}
+        if (_isOnFire)
+        {
+            _burnTimer += (float)delta;
+            float timeLeft = Mathf.Max(0f, _currentBurnDuration - _burnTimer);
+            _hud?.SetHeatWarning(true, timeLeft);
+            if (_burnTimer >= _currentBurnDuration)
+            {
+                Die();
+            }
+        }
+        else
+        {
+            _hud?.SetHeatWarning(false);
+        }
+    }
 
-	private void OnAreaEntered(Area2D area)
-	{
-		area.Visible = false;
-		area.SetDeferred("process_mode", (int)Node.ProcessModeEnum.Disabled);
+    private void OnAreaEntered(Area2D area)
+    {
+        area.Visible = false;
+        area.SetDeferred("process_mode", (int)Node.ProcessModeEnum.Disabled);
 
-		if (area.CollisionLayer == 2 || area.IsInGroup("Obstacle") || area.Name.ToString().Contains("Obstacle"))
-		{
-			CatchFire();
-		}
-		else if (area.CollisionLayer == 4 || area.IsInGroup("Water") || area.Name.ToString().Contains("Water"))
-		{
-			Extinguish();
-		}
-		else if (area.IsInGroup("Coin") || area.Name.ToString().Contains("Coin"))
-		{
-			GD.Print("Монетка зібрана!");
-			_score++;
-			_hud?.UpdateScore(_score);		
-		}
-	}
+        if (area.CollisionLayer == 2 || area.IsInGroup("Obstacle") || area.Name.ToString().Contains("Obstacle"))
+        {
+            CatchFire();
+        }
+        else if (area.CollisionLayer == 4 || area.IsInGroup("Water") || area.Name.ToString().Contains("Water"))
+        {
+            Extinguish();
+        }
+        else if (area.IsInGroup("Coin") || area.Name.ToString().Contains("Coin"))
+        {
+            GD.Print("Монетка зібрана!");
+            _score++;
+            _hud?.UpdateScore(_score);		
+        }
+    }
 
-	private void CatchFire()
-	{
-		if (_isOnFire) 
-			return;
+    private void CatchFire()
+    {
+        if (_isOnFire) 
+            return;
 
-		_isOnFire = true;
-		_burnTimer = 0f;
-		_currentBurnDuration = (float)GD.RandRange(MinBurnTime, MaxBurnTime);
+        _isOnFire = true;
+        _burnTimer = 0f;
+        _currentBurnDuration = (float)GD.RandRange(MinBurnTime, MaxBurnTime);
 
-		if (_visualRect != null)
-			_visualRect.Color = new Color(1f, 0.3f, 0.2f);
+        if (_visualRect != null)
+            _visualRect.Color = new Color(1f, 0.3f, 0.2f);
 
-		GD.Print($"Гравець загорівся! Час до смерті: {_currentBurnDuration:F1} сек.");
-	}
+        GD.Print($"Гравець загорівся! Час до смерті: {_currentBurnDuration:F1} сек.");
+    }
 
-	private void Extinguish()
-	{
-		if (!_isOnFire) 
-			return;
+    private void Extinguish()
+    {
+        if (!_isOnFire) 
+            return;
 
-		_isOnFire = false;
-		_burnTimer = 0f;
+        _isOnFire = false;
+        _burnTimer = 0f;
 
-		if (_visualRect != null)
-			_visualRect.Color = new Color(1f, 1f, 1f);
+        if (_visualRect != null)
+            _visualRect.Color = new Color(1f, 1f, 1f);
 
-		GD.Print("Вогонь погашено!");
-	}
+        GD.Print("Вогонь погашено!");
+    }
 
-	private void Die()
-	{
-		_isOnFire = false;
-		
-		SetProcessUnhandledKeyInput(false);
+    private void Die()
+    {
+        _isOnFire = false;
+        
+        SetProcessUnhandledKeyInput(false);
 
-		Tween deathTween = CreateTween();
-		deathTween.SetParallel(true);
+        Tween deathTween = CreateTween();
+        deathTween.SetParallel(true);
 
-		float duration = 0.7f;
+        float duration = 0.7f;
 
-		deathTween.TweenProperty(this, "rotation", Mathf.DegToRad(180f), duration)
-			.SetTrans(Tween.TransitionType.Back)
-			.SetEase(Tween.EaseType.In);
+        deathTween.TweenProperty(this, "rotation", Mathf.DegToRad(180f), duration)
+            .SetTrans(Tween.TransitionType.Back)
+            .SetEase(Tween.EaseType.In);
 
-		deathTween.TweenProperty(this, "scale", Vector2.Zero, duration)
-			.SetTrans(Tween.TransitionType.Quad)
-			.SetEase(Tween.EaseType.In);
+        deathTween.TweenProperty(this, "scale", Vector2.Zero, duration)
+            .SetTrans(Tween.TransitionType.Quad)
+            .SetEase(Tween.EaseType.In);
 
-		if (_visualRect != null)
-		{
-			deathTween.TweenProperty(_visualRect, "color", new Color(0.08f, 0.08f, 0.08f, 0f), duration);
-		}
+        if (_visualRect != null)
+        {
+            deathTween.TweenProperty(_visualRect, "color", new Color(0.08f, 0.08f, 0.08f, 0f), duration);
+        }
 
-		deathTween.Chain().TweenCallback(Callable.From(() =>
-		{
-			GetTree().Paused = true;
-			_hud?.ShowGameOver();
-		}));
-	}
+        deathTween.Chain().TweenCallback(Callable.From(() =>
+        {
+            GetTree().Paused = true;
+            _hud?.ShowGameOver();
+        }));
+    }
 }
