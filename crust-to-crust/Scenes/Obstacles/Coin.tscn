@@ -1,0 +1,68 @@
+[gd_scene format=3 uid="uid://j76siy3dxstc"]
+
+[ext_resource type="Script" uid="uid://q2bn60fcod5d" path="res://Scripts/Coin.cs" id="1_nq8s2"]
+[ext_resource type="Texture2D" uid="uid://ddjsbphpl7um5" path="res://Textures/Coin/Gold_1.png" id="2_tp5fx"]
+[ext_resource type="Texture2D" uid="uid://1ii27byghnje" path="res://Textures/Coin/Gold_2.png" id="3_e8kxr"]
+[ext_resource type="Texture2D" uid="uid://uccm4aacv27n" path="res://Textures/Coin/Gold_3.png" id="4_mcg27"]
+[ext_resource type="Texture2D" uid="uid://2317jmtdedb0" path="res://Textures/Coin/Gold_4.png" id="5_cp8kv"]
+[ext_resource type="Texture2D" uid="uid://fc4b2ycd8tc3" path="res://Textures/Coin/Gold_5.png" id="6_ms3sy"]
+[ext_resource type="Texture2D" uid="uid://bd7ofpxtng34a" path="res://Textures/Coin/Gold_6.png" id="7_iyt32"]
+[ext_resource type="Texture2D" uid="uid://47fay255riq0" path="res://Textures/Coin/Gold_7.png" id="8_wgnbv"]
+[ext_resource type="Texture2D" uid="uid://bprqbdike2wt5" path="res://Textures/Coin/Gold_8.png" id="9_vqwl4"]
+[ext_resource type="Texture2D" uid="uid://6hgomw2jmeq5" path="res://Textures/Coin/Gold_9.png" id="10_ubsuj"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_3mj47"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_1vw2r"]
+load_path = "res://.godot/imported/Gold_10.png-e7a9414e46643bf89b379d81a80843e8.ctex"
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_ihk4x"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_tp5fx")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_e8kxr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_mcg27")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_cp8kv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_ms3sy")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_iyt32")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_wgnbv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_vqwl4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_ubsuj")
+}, {
+"duration": 1.0,
+"texture": SubResource("CompressedTexture2D_1vw2r")
+}],
+"loop": 1,
+"name": &"Spin",
+"speed": 13.0
+}]
+
+[node name="Coin" type="Area2D" unique_id=1620736995 groups=["Coin"]]
+collision_layer = 8
+script = ExtResource("1_nq8s2")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1796047943]
+shape = SubResource("RectangleShape2D_3mj47")
+
+[node name="ColorRect" type="AnimatedSprite2D" parent="." unique_id=933768084]
+scale = Vector2(0.1, 0.1)
+sprite_frames = SubResource("SpriteFrames_ihk4x")
+animation = &"Spin"
+frame_progress = 0.4221352

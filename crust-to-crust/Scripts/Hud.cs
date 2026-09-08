@@ -2,50 +2,70 @@ using Godot;
 
 public partial class Hud : CanvasLayer
 {
-	private Label _scoreLabel;
-	private Label _depthLabel;
-	private Label _heatLabel;
-	private Control _gameOverPanel;
-	private Button _restartButton;
+    private Label _scoreLabel;
+    private Label _depthLabel;
+    private Label _heatLabel;
+    private Control _gameOverPanel;
+    private Button _restartButton;
+    private Control _startMenuPanel;
+    private Button _startButton;
 
-	public override void _Ready()
-	{
-		_scoreLabel = GetNode<Label>("Control/ScoreLabel");
-		_depthLabel = GetNode<Label>("Control/DepthLabel");
-		_heatLabel = GetNode<Label>("Control/HeatLabel");
-		_gameOverPanel = GetNode<Control>("Control/GameOverPanel");
-		_restartButton = GetNode<Button>("Control/GameOverPanel/RestartButton");
+    [Signal]
+    public delegate void StartRequestedEventHandler();
 
-		_restartButton.Pressed += OnRestartPressed;
-	}
+    public override void _Ready()
+    {
+        _scoreLabel = GetNode<Label>("Control/ScoreLabel");
+        _depthLabel = GetNode<Label>("Control/DepthLabel");
+        _heatLabel = GetNode<Label>("Control/HeatLabel");
+        _gameOverPanel = GetNode<Control>("Control/GameOverPanel");
+        _restartButton = GetNode<Button>("Control/GameOverPanel/RestartButton");
+        _startMenuPanel = GetNodeOrNull<Control>("Control/StartMenuPanel");
+        _startButton = GetNodeOrNull<Button>("Control/StartMenuPanel/StartButton");
 
-	public void UpdateScore(int score)
-	{
-		_scoreLabel.Text = $"Монети: {score}";
-	}
+        _restartButton.Pressed += OnRestartPressed;
+        if (_startButton != null)
+        {
+            _startButton.Pressed += OnStartPressed;
+        }
+    }
 
-	public void UpdateDepth(float depth)
-	{
-		_depthLabel.Text = $"Глибина: {Mathf.FloorToInt(depth)} м";
-	}
+    private void OnStartPressed()
+    {
+        if (_startMenuPanel != null)
+        {
+            _startMenuPanel.Visible = false;
+        }
+        EmitSignal(SignalName.StartRequested);
+    }
 
-	public void SetHeatWarning(bool visible, float timeLeft = 0f)
-	{
-		_heatLabel.Visible = visible;
-		if (visible)
-		{
-			_heatLabel.Text = $"ЗОНА ЯДРА! До згорання: {timeLeft:F1}с";
-		}
-	}
+    public void UpdateScore(int score)
+    {
+        _scoreLabel.Text = $"COINS: {score}";
+    }
 
-	public void ShowGameOver()
-	{
-		_gameOverPanel.Visible = true;
-	}
+    public void UpdateDepth(float depth)
+    {
+        _depthLabel.Text = $"DEPTH: {Mathf.FloorToInt(depth)} M";
+    }
 
-	private void OnRestartPressed()
-	{
-		GetTree().Paused = false;
-		GetTree().ReloadCurrentScene();
-	}
+    public void SetHeatWarning(bool visible)
+    {
+        _heatLabel.Visible = visible;
+        if (visible)
+        {
+            _heatLabel.Text = "CORE ZONE! FIND WATER!";
+        }
+    }
+
+    public void ShowGameOver()
+    {
+        _gameOverPanel.Visible = true;
+    }
+
+    private void OnRestartPressed()
+    {
+        GetTree().Paused = false;
+        GetTree().ReloadCurrentScene();
+    }
 }
