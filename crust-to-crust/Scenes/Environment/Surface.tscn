@@ -1,0 +1,44 @@
+[gd_scene format=3 uid="uid://bbt57k1tv7i78"]
+
+[node name="Surface" type="Node2D" unique_id=645184170]
+
+[node name="Sky" type="ColorRect" parent="." unique_id=1550342528]
+offset_left = -1200.0
+offset_top = -1300.0
+offset_right = 1200.0
+offset_bottom = -450.0
+color = Color(0.035, 0.07, 0.12, 1)
+
+[node name="MoonGlow" type="Polygon2D" parent="." unique_id=2025740510]
+color = Color(0.48, 0.64, 0.72, 0.22)
+polygon = PackedVector2Array(610, -970, 650, -960, 680, -930, 690, -890, 680, -850, 650, -820, 610, -810, 570, -820, 540, -850, 530, -890, 540, -930, 570, -960)
+
+[node name="Moon" type="Polygon2D" parent="." unique_id=771244581]
+color = Color(0.76, 0.82, 0.78, 1)
+polygon = PackedVector2Array(610, -950, 640, -942, 662, -920, 670, -890, 662, -860, 640, -838, 610, -830, 580, -838, 558, -860, 550, -890, 558, -920, 580, -942)
+
+[node name="MountainsFar" type="Polygon2D" parent="." unique_id=856545063]
+color = Color(0.07, 0.105, 0.13, 1)
+polygon = PackedVector2Array(-1200, -450, -1200, -650, -900, -800, -650, -610, -390, -820, -100, -590, 180, -760, 480, -590, 760, -790, 1050, -610, 1200, -690, 1200, -450)
+
+[node name="GrassLeft" type="ColorRect" parent="." unique_id=1159663389]
+offset_left = -1200.0
+offset_top = -482.0
+offset_right = -350.0
+offset_bottom = -462.0
+color = Color(0.2, 0.39, 0.22, 1)
+
+[node name="GrassRight" type="ColorRect" parent="." unique_id=930938025]
+offset_left = 350.0
+offset_top = -482.0
+offset_right = 1200.0
+offset_bottom = -462.0
+color = Color(0.2, 0.39, 0.22, 1)
+
+[node name="LeftRim" type="Polygon2D" parent="." unique_id=1289078478]
+color = Color(0.34, 0.52, 0.27, 1)
+polygon = PackedVector2Array(-430, -482, -350, -482, -350, -360)
+
+[node name="RightRim" type="Polygon2D" parent="." unique_id=425579992]
+color = Color(0.34, 0.52, 0.27, 1)
+polygon = PackedVector2Array(350, -482, 430, -482, 350, -360)

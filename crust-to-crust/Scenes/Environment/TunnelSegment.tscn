@@ -1,0 +1,156 @@
+[gd_scene format=3 uid="uid://bya0t0xsti8fd"]
+
+[ext_resource type="Texture2D" uid="uid://dkkbdpc2lcnec" path="res://Textures/Generated/rock_wall_large.png" id="1_rock"]
+
+[node name="TunnelSegment" type="Node2D" unique_id=1520080434 groups=["TunnelSegment"]]
+
+[node name="DeepRock" type="Polygon2D" parent="." unique_id=2041658843 groups=["RockBackground"]]
+z_index = -10
+texture_repeat = 2
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(-340, 0, 340, 0, 340, 720, -340, 720)
+uv = PackedVector2Array(0, 0, 680, 0, 680, 720, 0, 720)
+
+[node name="LeftBlockLarge" type="Polygon2D" parent="." unique_id=997451720 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(-315, 205, -252, 214, -198, 278, -228, 347, -304, 366)
+uv = PackedVector2Array(0, 0, 63, 9, 117, 73, 87, 142, 11, 161)
+
+[node name="LeftCrystalShort" type="Polygon2D" parent="." unique_id=13530551 groups=["Crystal"]]
+color = Color(0.22, 0.58, 0.78, 0.92)
+polygon = PackedVector2Array(-285, 556, -225, 493, -248, 565)
+
+[node name="RightCrystalTall" type="Polygon2D" parent="." unique_id=1812081195 groups=["Crystal"]]
+position = Vector2(52, 298)
+rotation = -1.1196375
+color = Color(0.32, 0.73, 0.88, 0.92)
+polygon = PackedVector2Array(302, 160, 270, 70, 251, 159)
+
+[node name="RightCrystalShort" type="Polygon2D" parent="." unique_id=1360180406 groups=["Crystal"]]
+position = Vector2(22.93, 309.975)
+rotation = -1.0559242
+color = Color(0.22, 0.58, 0.78, 0.92)
+polygon = PackedVector2Array(284, 167, 225, 103, 248, 176)
+
+[node name="LeftCrystalTall" type="Polygon2D" parent="." unique_id=1141811964 groups=["Crystal"]]
+position = Vector2(320, 428)
+rotation = 1.0062203
+color = Color(0.32, 0.73, 0.88, 0.92)
+polygon = PackedVector2Array(-302, 550, -266, 455, -250, 548)
+
+[node name="RightBlockLarge" type="Polygon2D" parent="." unique_id=1963712663 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(315, 470, 246, 450, 190, 505, 215, 578, 304, 600)
+uv = PackedVector2Array(125, 20, 56, 0, 0, 55, 25, 128, 114, 150)
+
+[node name="LeftWall" type="Polygon2D" parent="." unique_id=712002076 groups=["RockForeground"]]
+visible = false
+texture_repeat = 2
+color = Color(0.88, 0.78, 0.72, 1)
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(-1000, 0, -320, 0, -338, 60, -290, 120, -330, 180, -265, 240, -315, 300, -280, 360, -340, 420, -275, 480, -325, 540, -295, 600, -330, 660, -320, 720, -1000, 720)
+uv = PackedVector2Array(0, 0, 680, 0, 662, 60, 710, 120, 670, 180, 735, 240, 685, 300, 720, 360, 660, 420, 725, 480, 675, 540, 705, 600, 670, 660, 680, 720, 0, 720)
+
+[node name="RightWall" type="Polygon2D" parent="." unique_id=2058570765 groups=["RockForeground"]]
+visible = false
+texture_repeat = 2
+color = Color(0.88, 0.78, 0.72, 1)
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(320, 0, 1000, 0, 1000, 720, 320, 720, 338, 660, 285, 600, 330, 540, 270, 480, 315, 420, 275, 360, 340, 300, 285, 240, 325, 180, 292, 120, 340, 60)
+uv = PackedVector2Array(0, 0, 680, 0, 680, 720, 0, 720, 18, 660, -35, 600, 10, 540, -50, 480, -5, 420, -45, 360, 20, 300, -35, 240, 5, 180, -28, 120, 20, 60)
+
+[node name="LeftWall01" type="Polygon2D" parent="." unique_id=1028605369 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(-1000, 0, -320, 0, -290, 120, -1000, 120)
+uv = PackedVector2Array(0, 0, 680, 0, 710, 120, 0, 120)
+
+[node name="LeftWall02" type="Polygon2D" parent="." unique_id=1470583823 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(-1000, 120, -290, 120, -265, 240, -1000, 240)
+uv = PackedVector2Array(0, 120, 710, 120, 735, 240, 0, 240)
+
+[node name="LeftWall03" type="Polygon2D" parent="." unique_id=148838048 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(-1000, 240, -265, 240, -280, 360, -1000, 360)
+uv = PackedVector2Array(0, 240, 735, 240, 720, 360, 0, 360)
+
+[node name="LeftWall04" type="Polygon2D" parent="." unique_id=1094181697 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(-1000, 360, -280, 360, -275, 480, -1000, 480)
+uv = PackedVector2Array(0, 360, 720, 360, 725, 480, 0, 480)
+
+[node name="LeftWall05" type="Polygon2D" parent="." unique_id=729755070 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(-1000, 480, -275, 480, -295, 600, -1000, 600)
+uv = PackedVector2Array(0, 480, 725, 480, 705, 600, 0, 600)
+
+[node name="LeftWall06" type="Polygon2D" parent="." unique_id=1594724119 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(-1000, 600, -295, 600, -320, 720, -1000, 720)
+uv = PackedVector2Array(0, 600, 705, 600, 680, 720, 0, 720)
+
+[node name="RightWall01" type="Polygon2D" parent="." unique_id=1591529233 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(320, 0, 1000, 0, 1000, 120, 292, 120)
+uv = PackedVector2Array(0, 0, 680, 0, 680, 120, -28, 120)
+
+[node name="RightWall02" type="Polygon2D" parent="." unique_id=583569905 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(292, 120, 1000, 120, 1000, 240, 285, 240)
+uv = PackedVector2Array(-28, 120, 680, 120, 680, 240, -35, 240)
+
+[node name="RightWall03" type="Polygon2D" parent="." unique_id=1680937296 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(285, 240, 1000, 240, 1000, 360, 275, 360)
+uv = PackedVector2Array(-35, 240, 680, 240, 680, 360, -45, 360)
+
+[node name="RightWall04" type="Polygon2D" parent="." unique_id=1621616193 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(275, 360, 1000, 360, 1000, 480, 270, 480)
+uv = PackedVector2Array(-45, 360, 680, 360, 680, 480, -50, 480)
+
+[node name="RightWall05" type="Polygon2D" parent="." unique_id=1754776155 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(270, 480, 1000, 480, 1000, 600, 285, 600)
+uv = PackedVector2Array(-50, 480, 680, 480, 680, 600, -35, 600)
+
+[node name="RightWall06" type="Polygon2D" parent="." unique_id=1947338147 groups=["RockForeground"]]
+texture = ExtResource("1_rock")
+polygon = PackedVector2Array(285, 600, 1000, 600, 1000, 720, 320, 720)
+uv = PackedVector2Array(-35, 600, 680, 600, 680, 720, 0, 720)
+
+[node name="LeftBlockCollision" type="Area2D" parent="." groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+[node name="Shape" type="CollisionPolygon2D" parent="LeftBlockCollision"]
+polygon = PackedVector2Array(-315, 205, -252, 214, -198, 278, -228, 347, -304, 366)
+
+[node name="RightBlockCollision" type="Area2D" parent="." groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+[node name="Shape" type="CollisionPolygon2D" parent="RightBlockCollision"]
+polygon = PackedVector2Array(315, 470, 246, 450, 190, 505, 215, 578, 304, 600)
+
+[node name="LeftCrystalTallCollision" type="Area2D" parent="." groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+[node name="Shape" type="CollisionPolygon2D" parent="LeftCrystalTallCollision"]
+polygon = PackedVector2Array(-302, 550, -266, 455, -250, 548)
+
+[node name="LeftCrystalShortCollision" type="Area2D" parent="." groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+[node name="Shape" type="CollisionPolygon2D" parent="LeftCrystalShortCollision"]
+polygon = PackedVector2Array(-285, 556, -225, 493, -248, 565)
+
+[node name="RightCrystalTallCollision" type="Area2D" parent="." groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+[node name="Shape" type="CollisionPolygon2D" parent="RightCrystalTallCollision"]
+polygon = PackedVector2Array(302, 160, 270, 70, 251, 159)
+
+[node name="RightCrystalShortCollision" type="Area2D" parent="." groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+[node name="Shape" type="CollisionPolygon2D" parent="RightCrystalShortCollision"]
+polygon = PackedVector2Array(284, 167, 225, 103, 248, 176)

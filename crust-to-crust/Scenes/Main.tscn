@@ -7,6 +7,8 @@
 [ext_resource type="PackedScene" uid="uid://j76siy3dxstc" path="res://Scenes/Obstacles/Coin.tscn" id="4_jw32o"]
 [ext_resource type="Script" uid="uid://cbucycg4poyh3" path="res://Scripts/Hud.cs" id="4_rgh2o"]
 [ext_resource type="FontFile" uid="uid://dxwrxt8e7bitq" path="res://BebasNeue-Regular.ttf" id="5_font"]
+[ext_resource type="PackedScene" uid="uid://bya0t0xsti8fd" path="res://Scenes/Environment/TunnelSegment.tscn" id="6_tunnel"]
+[ext_resource type="PackedScene" uid="uid://bbt57k1tv7i78" path="res://Scenes/Environment/Surface.tscn" id="7_surface"]
 
 [node name="Main" type="Node2D" unique_id=1929344963]
 script = ExtResource("1_idj7w")
@@ -16,7 +18,47 @@ coinScene = ExtResource("4_jw32o")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2092942518]
 
+[node name="TunnelSegments" type="Node2D" parent="." unique_id=1517411515]
+
+[node name="SegmentA" parent="TunnelSegments" unique_id=653237366 instance=ExtResource("6_tunnel")]
+position = Vector2(0, -1440)
+
+[node name="SegmentB" parent="TunnelSegments" unique_id=821135063 instance=ExtResource("6_tunnel")]
+position = Vector2(0, -720)
+
+[node name="SegmentC" parent="TunnelSegments" unique_id=1852015316 instance=ExtResource("6_tunnel")]
+
+[node name="SegmentD" parent="TunnelSegments" unique_id=1064285545 instance=ExtResource("6_tunnel")]
+position = Vector2(0, 720)
+
+[node name="SegmentE" parent="TunnelSegments" unique_id=878676929 instance=ExtResource("6_tunnel")]
+position = Vector2(0, 1440)
+
 [node name="TunnelWalls" type="Node2D" parent="." unique_id=311223344]
+
+[node name="SurfaceSky" type="ColorRect" parent="TunnelWalls" unique_id=674095439]
+visible = false
+offset_left = -1200.0
+offset_top = -1200.0
+offset_right = 1200.0
+offset_bottom = -450.0
+color = Color(0.1, 0.19, 0.29, 1)
+
+[node name="SurfaceCliffLeft" type="ColorRect" parent="TunnelWalls" unique_id=1376066142]
+visible = false
+offset_left = -700.0
+offset_top = -450.0
+offset_right = -350.0
+offset_bottom = 260.0
+color = Color(0.19, 0.16, 0.12, 1)
+
+[node name="SurfaceCliffRight" type="ColorRect" parent="TunnelWalls" unique_id=1712225821]
+visible = false
+offset_left = 350.0
+offset_top = -450.0
+offset_right = 700.0
+offset_bottom = 260.0
+color = Color(0.19, 0.16, 0.12, 1)
 
 [node name="LeftWall" type="ColorRect" parent="TunnelWalls" unique_id=311223345]
 offset_left = -700.0
@@ -47,6 +89,7 @@ offset_bottom = 1200.0
 color = Color(0.45, 0.4, 0.35, 1)
 
 [node name="SurfaceGround" type="ColorRect" parent="TunnelWalls" unique_id=311223349]
+visible = false
 offset_left = -700.0
 offset_top = -450.0
 offset_right = -350.0
@@ -54,11 +97,14 @@ offset_bottom = -430.0
 color = Color(0.24, 0.42, 0.18, 1)
 
 [node name="SurfaceGroundRight" type="ColorRect" parent="TunnelWalls" unique_id=311223350]
+visible = false
 offset_left = 350.0
 offset_top = -450.0
 offset_right = 700.0
 offset_bottom = -430.0
 color = Color(0.24, 0.42, 0.18, 1)
+
+[node name="Surface" parent="TunnelWalls" unique_id=470199197 instance=ExtResource("7_surface")]
 
 [node name="Player" parent="." unique_id=668123400 instance=ExtResource("3_kln2b")]
 
