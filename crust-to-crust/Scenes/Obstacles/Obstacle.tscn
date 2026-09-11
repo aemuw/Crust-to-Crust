@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bvav8sxdg40sb"]
 
 [ext_resource type="Script" uid="uid://qmvlg1aag5rt" path="res://Scripts/Obstacle.cs" id="1_1qxsq"]
+[ext_resource type="Texture2D" uid="uid://cqgs7d4rhqjyo" path="res://Textures/Generated/basalt_rock.png" id="2_rock"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_3mj47"]
 size = Vector2(50, 50)
@@ -9,20 +10,8 @@ size = Vector2(50, 50)
 collision_layer = 2
 script = ExtResource("1_1qxsq")
 
-[node name="RockDustTrail" type="CPUParticles2D" parent="." unique_id=994363430]
-amount = 12
-lifetime = 0.4
-speed_scale = 1.2
-direction = Vector2(0, 1)
-spread = 25.0
-gravity = Vector2(0, 150)
-initial_velocity_min = 30.0
-initial_velocity_max = 80.0
-scale_amount_min = 2.0
-scale_amount_max = 5.0
-color = Color(0.45, 0.4, 0.35, 0.45)
-
 [node name="RockShadow" type="ColorRect" parent="." unique_id=994363426]
+visible = false
 offset_left = -28.0
 offset_top = -28.0
 offset_right = 28.0
@@ -30,6 +19,7 @@ offset_bottom = 28.0
 color = Color(0.12, 0.1, 0.09, 0.7)
 
 [node name="RockBase" type="ColorRect" parent="." unique_id=297186236]
+visible = false
 offset_left = -25.0
 offset_top = -25.0
 offset_right = 25.0
@@ -37,6 +27,7 @@ offset_bottom = 25.0
 color = Color(0.35, 0.32, 0.3, 1)
 
 [node name="RockFacetDark" type="ColorRect" parent="." unique_id=994363427]
+visible = false
 offset_left = -8.0
 offset_top = -25.0
 offset_right = 25.0
@@ -44,11 +35,16 @@ offset_bottom = 25.0
 color = Color(0.24, 0.22, 0.2, 0.85)
 
 [node name="RockFacetLight" type="ColorRect" parent="." unique_id=994363428]
+visible = false
 offset_left = -25.0
 offset_top = -25.0
 offset_right = 5.0
 offset_bottom = -2.0
 color = Color(0.48, 0.45, 0.42, 0.75)
+
+[node name="RockSprite" type="Sprite2D" parent="." unique_id=2133621173]
+scale = Vector2(0.058, 0.058)
+texture = ExtResource("2_rock")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1258617509]
 shape = SubResource("RectangleShape2D_3mj47")

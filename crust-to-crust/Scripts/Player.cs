@@ -23,6 +23,7 @@ public partial class Player : CharacterBody2D
 
     private Camera2D _camera;
     private ColorRect _visualRect;
+    private Sprite2D _characterSprite;
     private ColorRect _fireGlow;
     private CpuParticles2D _fireParticles;
     private CpuParticles2D _smokeParticles;
@@ -45,6 +46,7 @@ public partial class Player : CharacterBody2D
     public override void _Ready()
     {
         _visualRect = GetNodeOrNull<ColorRect>("ColorRect");
+        _characterSprite = GetNodeOrNull<Sprite2D>("CharacterSprite");
         _fireGlow = GetNodeOrNull<ColorRect>("FireGlow");
         _fireParticles = GetNodeOrNull<CpuParticles2D>("FireParticles");
         _smokeParticles = GetNodeOrNull<CpuParticles2D>("SmokeParticles");
@@ -163,6 +165,7 @@ public partial class Player : CharacterBody2D
             if (_camera != null) _camera.Position = Vector2.Zero;
             _isIntroPlaying = false;
             SetProcessUnhandledKeyInput(true);
+            _levelGenerator?.BeginFalling();
         }));
     }
 
@@ -231,8 +234,29 @@ public partial class Player : CharacterBody2D
 
         // Оновлюємо горизонтальну позицію кубика з м'якими межами тунелю
         float newX = Position.X + _currentVelocityX * (float)delta;
-        newX = Mathf.Clamp(newX, MinX, MaxX);
+		float dynamicMinX = MinX;
+		float dynamicMaxX = MaxX;
+		if (_levelGenerator != null)
+		{
+			_levelGenerator.GetTunnelBounds(FixedY, out float leftEdge, out float rightEdge);
+			dynamicMinX = leftEdge + 34f;
+			dynamicMaxX = rightEdge - 34f;
+		}
+        newX = Mathf.Clamp(newX, dynamicMinX, dynamicMaxX);
         Position = new Vector2(newX, FixedY);
+
+		// Камера трохи випереджає горизонтальний рух, нахиляється та віддаляється
+		// на великій швидкості падіння. Значення навмисно стримані, щоб не нудило.
+		if (_camera != null && !_isDead)
+		{
+			float horizontalRatio = HorizontalSpeed > 0f ? _currentVelocityX / HorizontalSpeed : 0f;
+			float fallRatio = _levelGenerator != null ? Mathf.Clamp(_levelGenerator.FallSpeed / 1200f, 0f, 1f) : 0f;
+			Vector2 targetOffset = new Vector2(horizontalRatio * 34f, fallRatio * 16f);
+			_camera.Offset = _camera.Offset.Lerp(targetOffset, Mathf.Clamp((float)delta * 4.5f, 0f, 1f));
+			_camera.Rotation = Mathf.Lerp(_camera.Rotation, -horizontalRatio * 0.022f, Mathf.Clamp((float)delta * 3.8f, 0f, 1f));
+			float zoomAmount = Mathf.Lerp(1.0f, 0.94f, fallRatio);
+			_camera.Zoom = _camera.Zoom.Lerp(new Vector2(zoomAmount, zoomAmount), Mathf.Clamp((float)delta * 2.2f, 0f, 1f));
+		}
 
         // Динамічний плавний нахил (tilt) кубика залежно від поточної швидкості
         if (!_isDead)
@@ -259,6 +283,8 @@ public partial class Player : CharacterBody2D
             {
                 _visualRect.Color = new Color(0.65f, 0.65f, 0.65f).Lerp(new Color(1f, 0.25f, 0.1f), heatFactor);
             }
+			if (_characterSprite != null)
+				_characterSprite.Modulate = Colors.White.Lerp(new Color(1.25f, 0.55f, 0.28f), heatFactor * 0.75f);
             // Ближче 2000м від ядра кубик остаточно займається полум'ям
             if (distToCore < 2000f)
             {
@@ -268,6 +294,7 @@ public partial class Player : CharacterBody2D
         else if (!_isOnFire && _visualRect != null)
         {
             _visualRect.Color = new Color(0.65f, 0.65f, 0.65f);
+            if (_characterSprite != null) _characterSprite.Modulate = Colors.White;
         }
 
         // 2. Фаза горіння: кубик поступово зменшується від плавлення/згорання
@@ -286,6 +313,11 @@ public partial class Player : CharacterBody2D
             {
                 float pulse = 0.5f + 0.5f * Mathf.Sin(_burnTimer * 14f);
                 _visualRect.Color = new Color(1f, 0.15f + pulse * 0.25f, 0.05f);
+                if (_characterSprite != null)
+                {
+                    _characterSprite.Modulate = new Color(1.25f, 0.55f + pulse * 0.35f, 0.25f);
+                    _characterSprite.Rotation = Mathf.Sin(_burnTimer * 19f) * 0.035f;
+                }
             }
 
             // Повне згорання -> спалах і смерть
@@ -349,6 +381,13 @@ public partial class Player : CharacterBody2D
             _fireParticles.Emitting = true;
         if (_smokeParticles != null)
             _smokeParticles.Emitting = true;
+        if (_characterSprite != null)
+        {
+            var ignitionTween = CreateTween();
+            ignitionTween.TweenProperty(_characterSprite, "scale", new Vector2(0.054f, 0.054f), 0.10f);
+            ignitionTween.TweenProperty(_characterSprite, "scale", new Vector2(0.048f, 0.048f), 0.18f)
+                .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+        }
     }
 
     private void Extinguish()
@@ -365,6 +404,12 @@ public partial class Player : CharacterBody2D
         Scale = Vector2.One;
         if (_visualRect != null)
             _visualRect.Color = new Color(0.65f, 0.65f, 0.65f);
+        if (_characterSprite != null)
+        {
+            _characterSprite.Modulate = Colors.White;
+            _characterSprite.Rotation = 0f;
+            _characterSprite.Scale = new Vector2(0.048f, 0.048f);
+        }
         if (_fireGlow != null)
             _fireGlow.Visible = false;
         if (_fireParticles != null)
@@ -392,6 +437,8 @@ public partial class Player : CharacterBody2D
         if (_fireGlow != null) _fireGlow.Visible = false;
         if (_fireParticles != null) _fireParticles.Emitting = false;
         if (_smokeParticles != null) _smokeParticles.Emitting = false;
+        CreateDeathFragments();
+        if (_characterSprite != null) _characterSprite.Visible = false;
 
         // Вибух уламків кубика
         if (_debrisParticles != null)
@@ -441,5 +488,40 @@ public partial class Player : CharacterBody2D
             GetTree().Paused = true;
             _hud?.ShowGameOver();
         }));
+    }
+
+    private void CreateDeathFragments()
+    {
+        if (_characterSprite?.Texture == null || GetParent() == null) return;
+
+        Vector2 textureSize = _characterSprite.Texture.GetSize();
+        Vector2 cellSize = textureSize / 3f;
+        for (int row = 0; row < 3; row++)
+        {
+            for (int column = 0; column < 3; column++)
+            {
+                var shard = new Sprite2D
+                {
+                    Texture = _characterSprite.Texture,
+                    RegionEnabled = true,
+                    RegionRect = new Rect2(new Vector2(column * cellSize.X, row * cellSize.Y), cellSize),
+                    Position = Position + new Vector2((column - 1) * 21f, (row - 1) * 21f),
+                    Scale = _characterSprite.Scale * Scale,
+                    Modulate = new Color(1.2f, 0.55f, 0.22f, 1f),
+                    ZIndex = 20
+                };
+                GetParent().AddChild(shard);
+
+                Vector2 direction = new Vector2(column - 1f, row - 1f).Normalized();
+                if (direction == Vector2.Zero) direction = Vector2.Up;
+                Vector2 target = shard.Position + direction * (90f + GD.Randf() * 85f) + new Vector2(0f, 70f);
+                var shardTween = shard.CreateTween().SetParallel(true);
+                shardTween.TweenProperty(shard, "position", target, 0.62f)
+                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+                shardTween.TweenProperty(shard, "rotation", (float)GD.RandRange(-5.0, 5.0), 0.62f);
+                shardTween.TweenProperty(shard, "modulate:a", 0f, 0.62f).SetDelay(0.20f);
+                shardTween.Chain().TweenCallback(Callable.From(shard.QueueFree));
+            }
+        }
     }
 }
