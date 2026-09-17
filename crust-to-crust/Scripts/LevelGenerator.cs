@@ -49,10 +49,13 @@ public partial class LevelGenerator : Node2D
     private Texture2D _rockWallTexture;
     private Node2D _tunnelSegmentsRoot;
     private Node2D _surfaceRoot;
+    private readonly Dictionary<Node2D, Vector2> _initialTunnelSegmentPositions = new();
     private bool _useEditableTunnelScenes = true;
     private const float TunnelTemplateHeight = 720f;
-    private static readonly float[] LeftTemplate = { 20f, 12f, 35f, 18f, 62f, 24f, 10f, 46f, 22f, 54f, 16f, 30f, 20f };
-    private static readonly float[] RightTemplate = { 18f, 42f, 14f, 28f, 12f, 55f, 20f, 34f, 64f, 18f, 38f, 10f, 18f };
+    // Точні внутрішні краї шести видимих секцій стіни з TunnelSegment.tscn.
+    // Точки розташовані через 120 px і з'єднуються прямими ребрами.
+    private static readonly float[] LeftTunnelEdges = { -320f, -290f, -265f, -280f, -275f, -295f, -320f };
+    private static readonly float[] RightTunnelEdges = { 320f, 292f, 285f, 275f, 270f, 285f, 320f };
 
     public bool IsGameActive = false;
 
@@ -70,6 +73,7 @@ public partial class LevelGenerator : Node2D
         _rockWallTexture = GD.Load<Texture2D>("res://Textures/Generated/rock_wall_large.png");
         _tunnelSegmentsRoot = GetNodeOrNull<Node2D>("TunnelSegments");
         _surfaceRoot = GetNodeOrNull<Node2D>("TunnelWalls/Surface");
+        RememberInitialTunnelSegmentPositions();
         TextureRepeat = TextureRepeatEnum.Enabled;
 
         // Старі прямі прямокутники замінюються процедурно намальованими стінами.
@@ -133,8 +137,8 @@ public partial class LevelGenerator : Node2D
         }
 
         CurrentDepth += FallSpeed * (float)delta;
-		_tunnelVisualDepth = CurrentDepth;
-		ScrollEditableTunnelSegments((float)delta);
+        _tunnelVisualDepth = CurrentDepth;
+        ScrollEditableTunnelSegments((float)delta);
 
         if (CurrentDepth < CoreDepthPoint)
         {
@@ -159,21 +163,23 @@ public partial class LevelGenerator : Node2D
             DeactivateAllPoolObjects(waterPool);
             DeactivateAllPoolObjects(coinPool);
 
+            // На час вильоту та повернення знову показуємо поверхню планети.
+            if (_surfaceRoot != null)
+                _surfaceRoot.Visible = true;
+
             if (_player != null)
             {
                 // Запуск кінематографічної анімації вильоту в небо, розвороту у невагомості і початку нового падіння
                 _player.PlayEmergenceAnimation(() =>
                 {
-                    CurrentDepth = 0f;
-                    FallSpeed = _initialFallSpeed;
-                    _isHanging = false;
+                    ResetForNextTunnelCycle();
+                    BeginFalling();
                 });
             }
             else
             {
-                CurrentDepth = 0f;
-                FallSpeed = _initialFallSpeed;
-                _isHanging = false;
+                ResetForNextTunnelCycle();
+                BeginFalling();
             }
             return;
         }
@@ -220,116 +226,146 @@ public partial class LevelGenerator : Node2D
         }
     }
 
-	private float SampleTemplate(float worldY, float[] template)
-	{
-		float localY = Mathf.PosMod(worldY, TunnelTemplateHeight);
-		float scaled = localY / TunnelTemplateHeight * (template.Length - 1);
-		int index = Mathf.FloorToInt(scaled);
-		int next = Mathf.Min(index + 1, template.Length - 1);
-		float t = scaled - index;
-		t = t * t * (3f - 2f * t);
-		return Mathf.Lerp(template[index], template[next], t);
-	}
+    private float SampleTunnelEdge(float worldY, float[] edgePoints)
+    {
+        float localY = Mathf.PosMod(worldY, TunnelTemplateHeight);
+        float scaled = localY / TunnelTemplateHeight * (edgePoints.Length - 1);
+        int index = Mathf.FloorToInt(scaled);
+        int next = Mathf.Min(index + 1, edgePoints.Length - 1);
+        float t = scaled - index;
+        return Mathf.Lerp(edgePoints[index], edgePoints[next], t);
+    }
 
-	public void GetTunnelBounds(float screenY, out float left, out float right)
-	{
-		// Окреме візуальне зміщення змінюється лише під час активної гри.
-		// Тому в головному меню рельєф гарантовано стоїть на місці.
-		float worldY = _tunnelVisualDepth + screenY;
-		left = -TunnelHalfWidth + SampleTemplate(worldY, LeftTemplate);
-		right = TunnelHalfWidth - SampleTemplate(worldY, RightTemplate);
-	}
+    public void GetTunnelBounds(float screenY, out float left, out float right)
+    {
+        // Окреме візуальне зміщення змінюється лише під час активної гри.
+        // Тому в головному меню рельєф гарантовано стоїть на місці.
+        float worldY = _tunnelVisualDepth + screenY;
+        left = SampleTunnelEdge(worldY, LeftTunnelEdges);
+        right = SampleTunnelEdge(worldY, RightTunnelEdges);
+    }
 
-	public override void _Draw()
-	{
-		// Основний тунель тепер зібраний вручну в TunnelSegment.tscn.
-		// Старий код залишено лише як резерв, але він не використовується.
-		if (_useEditableTunnelScenes) return;
-		const float top = -650f;
-		const float bottom = 1050f;
-		Color wallTint = GetRockTextureTint();
+    public override void _Draw()
+    {
+        // Основний тунель тепер зібраний вручну в TunnelSegment.tscn.
+        // Старий код залишено лише як резерв, але він не використовується.
+        if (_useEditableTunnelScenes) return;
+        const float top = -650f;
+        const float bottom = 1050f;
+        Color wallTint = GetRockTextureTint();
 
-		// Темна порода всередині тунелю рухається повільніше за передні стіни (parallax).
-		Vector2[] backdrop =
-		{
-			new Vector2(-1200f, top), new Vector2(1200f, top),
-			new Vector2(1200f, bottom), new Vector2(-1200f, bottom)
-		};
-		float parallaxY = _tunnelVisualDepth * 0.18f;
-		Vector2[] backdropUv =
-		{
-			new Vector2(0f, (top + parallaxY) * 0.12f), new Vector2(288f, (top + parallaxY) * 0.12f),
-			new Vector2(288f, (bottom + parallaxY) * 0.12f), new Vector2(0f, (bottom + parallaxY) * 0.12f)
-		};
-		Color backdropTint = new Color(wallTint.R * 0.30f, wallTint.G * 0.30f, wallTint.B * 0.30f);
-		DrawColoredPolygon(backdrop, backdropTint, backdropUv, _rockWallTexture);
+        // Темна порода всередині тунелю рухається повільніше за передні стіни (parallax).
+        Vector2[] backdrop =
+        {
+            new Vector2(-1200f, top), new Vector2(1200f, top),
+            new Vector2(1200f, bottom), new Vector2(-1200f, bottom)
+        };
+        float parallaxY = _tunnelVisualDepth * 0.18f;
+        Vector2[] backdropUv =
+        {
+            new Vector2(0f, (top + parallaxY) * 0.12f), new Vector2(288f, (top + parallaxY) * 0.12f),
+            new Vector2(288f, (bottom + parallaxY) * 0.12f), new Vector2(0f, (bottom + parallaxY) * 0.12f)
+        };
+        Color backdropTint = new Color(wallTint.R * 0.30f, wallTint.G * 0.30f, wallTint.B * 0.30f);
+        DrawColoredPolygon(backdrop, backdropTint, backdropUv, _rockWallTexture);
 
-		// Малюємо готові секції цілком і лише зсуваємо їх по Y.
-		// Геометрія не перераховується по екранних зрізах, тому краї більше не дригаються.
-		float firstSectionY = -Mathf.PosMod(_tunnelVisualDepth, TunnelTemplateHeight) - TunnelTemplateHeight;
-		for (float sectionY = firstSectionY; sectionY < bottom + TunnelTemplateHeight; sectionY += TunnelTemplateHeight)
-		{
-			DrawTunnelTemplateSection(sectionY, wallTint);
-		}
-	}
+        // Малюємо готові секції цілком і лише зсуваємо їх по Y.
+        // Геометрія не перераховується по екранних зрізах, тому краї більше не дригаються.
+        float firstSectionY = -Mathf.PosMod(_tunnelVisualDepth, TunnelTemplateHeight) - TunnelTemplateHeight;
+        for (float sectionY = firstSectionY; sectionY < bottom + TunnelTemplateHeight; sectionY += TunnelTemplateHeight)
+        {
+            DrawTunnelTemplateSection(sectionY, wallTint);
+        }
+    }
 
-	private void ScrollEditableTunnelSegments(float delta)
-	{
-		if (_tunnelSegmentsRoot == null) return;
-		const float loopHeight = TunnelTemplateHeight * 5f;
-		foreach (Node child in _tunnelSegmentsRoot.GetChildren())
-		{
-			if (child is not Node2D segment) continue;
-			segment.Position += new Vector2(0f, -FallSpeed * delta);
-			if (segment.Position.Y < -TunnelTemplateHeight * 2f)
-				segment.Position += new Vector2(0f, loopHeight);
-		}
-	}
+    private void ScrollEditableTunnelSegments(float delta)
+    {
+        if (_tunnelSegmentsRoot == null) return;
+        const float loopHeight = TunnelTemplateHeight * 5f;
+        foreach (Node child in _tunnelSegmentsRoot.GetChildren())
+        {
+            if (child is not Node2D segment) continue;
+            segment.Position += new Vector2(0f, -FallSpeed * delta);
+            if (segment.Position.Y < -TunnelTemplateHeight * 2f)
+                segment.Position += new Vector2(0f, loopHeight);
+        }
+    }
 
-	private Color GetRockTextureTint()
-	{
-		return new Color(
-			Mathf.Clamp(0.66f + _currentWallColor.R * 1.45f, 0.76f, 1f),
-			Mathf.Clamp(0.52f + _currentWallColor.G * 1.25f, 0.54f, 0.82f),
-			Mathf.Clamp(0.48f + _currentWallColor.B * 1.15f, 0.50f, 0.76f));
-	}
+    private void RememberInitialTunnelSegmentPositions()
+    {
+        _initialTunnelSegmentPositions.Clear();
+        if (_tunnelSegmentsRoot == null) return;
 
-	private void DrawTunnelTemplateSection(float sectionY, Color textureTint)
-	{
-		int count = LeftTemplate.Length;
-		Vector2[] leftInner = new Vector2[count];
-		Vector2[] rightInner = new Vector2[count];
-		for (int i = 0; i < count; i++)
-		{
-			float y = sectionY + TunnelTemplateHeight * i / (count - 1);
-			leftInner[i] = new Vector2(-TunnelHalfWidth + LeftTemplate[i], y);
-			rightInner[i] = new Vector2(TunnelHalfWidth - RightTemplate[i], y);
-		}
+        foreach (Node child in _tunnelSegmentsRoot.GetChildren())
+        {
+            if (child is Node2D segment)
+                _initialTunnelSegmentPositions[segment] = segment.Position;
+        }
+    }
 
-		Vector2[] leftPolygon = new Vector2[count + 2];
-		leftPolygon[0] = new Vector2(-1200f, sectionY);
-		for (int i = 0; i < count; i++) leftPolygon[i + 1] = leftInner[i];
-		leftPolygon[count + 1] = new Vector2(-1200f, sectionY + TunnelTemplateHeight);
+    private void ResetForNextTunnelCycle()
+    {
+        CurrentDepth = 0f;
+        _tunnelVisualDepth = 0f;
+        FallSpeed = _initialFallSpeed;
+        _isHanging = false;
+        obstacleTimer = 0f;
+        waterTimer = 0f;
+        coinTimer = 0f;
 
-		Vector2[] rightPolygon = new Vector2[count + 2];
-		for (int i = 0; i < count; i++) rightPolygon[i] = rightInner[i];
-		rightPolygon[count] = new Vector2(1200f, sectionY + TunnelTemplateHeight);
-		rightPolygon[count + 1] = new Vector2(1200f, sectionY);
+        foreach (KeyValuePair<Node2D, Vector2> entry in _initialTunnelSegmentPositions)
+        {
+            if (GodotObject.IsInstanceValid(entry.Key))
+                entry.Key.Position = entry.Value;
+        }
 
-		Vector2[] leftUv = new Vector2[leftPolygon.Length];
-		Vector2[] rightUv = new Vector2[rightPolygon.Length];
-		for (int i = 0; i < leftPolygon.Length; i++) leftUv[i] = (leftPolygon[i] + new Vector2(1200f, _tunnelVisualDepth)) * 0.12f;
-		for (int i = 0; i < rightPolygon.Length; i++) rightUv[i] = (rightPolygon[i] + new Vector2(1200f, _tunnelVisualDepth)) * 0.12f;
+        UpdateWallColors();
+    }
 
-		DrawColoredPolygon(leftPolygon, textureTint, leftUv, _rockWallTexture);
-		DrawColoredPolygon(rightPolygon, textureTint, rightUv, _rockWallTexture);
-		DrawPolyline(leftInner, _currentBorderColor, 5f, true);
-		DrawPolyline(rightInner, _currentBorderColor, 5f, true);
-		DrawTemplateDecorations(sectionY, textureTint);
-	}
+    private Color GetRockTextureTint()
+    {
+        return new Color(
+            Mathf.Clamp(0.66f + _currentWallColor.R * 1.45f, 0.76f, 1f),
+            Mathf.Clamp(0.52f + _currentWallColor.G * 1.25f, 0.54f, 0.82f),
+            Mathf.Clamp(0.48f + _currentWallColor.B * 1.15f, 0.50f, 0.76f));
+    }
 
-	private void DrawTemplateDecorations(float sectionY, Color textureTint)
-	{
+    private void DrawTunnelTemplateSection(float sectionY, Color textureTint)
+    {
+        int count = LeftTunnelEdges.Length;
+        Vector2[] leftInner = new Vector2[count];
+        Vector2[] rightInner = new Vector2[count];
+        for (int i = 0; i < count; i++)
+        {
+            float y = sectionY + TunnelTemplateHeight * i / (count - 1);
+            leftInner[i] = new Vector2(LeftTunnelEdges[i], y);
+            rightInner[i] = new Vector2(RightTunnelEdges[i], y);
+        }
+
+        Vector2[] leftPolygon = new Vector2[count + 2];
+        leftPolygon[0] = new Vector2(-1200f, sectionY);
+        for (int i = 0; i < count; i++) leftPolygon[i + 1] = leftInner[i];
+        leftPolygon[count + 1] = new Vector2(-1200f, sectionY + TunnelTemplateHeight);
+
+        Vector2[] rightPolygon = new Vector2[count + 2];
+        for (int i = 0; i < count; i++) rightPolygon[i] = rightInner[i];
+        rightPolygon[count] = new Vector2(1200f, sectionY + TunnelTemplateHeight);
+        rightPolygon[count + 1] = new Vector2(1200f, sectionY);
+
+        Vector2[] leftUv = new Vector2[leftPolygon.Length];
+        Vector2[] rightUv = new Vector2[rightPolygon.Length];
+        for (int i = 0; i < leftPolygon.Length; i++) leftUv[i] = (leftPolygon[i] + new Vector2(1200f, _tunnelVisualDepth)) * 0.12f;
+        for (int i = 0; i < rightPolygon.Length; i++) rightUv[i] = (rightPolygon[i] + new Vector2(1200f, _tunnelVisualDepth)) * 0.12f;
+
+        DrawColoredPolygon(leftPolygon, textureTint, leftUv, _rockWallTexture);
+        DrawColoredPolygon(rightPolygon, textureTint, rightUv, _rockWallTexture);
+        DrawPolyline(leftInner, _currentBorderColor, 5f, true);
+        DrawPolyline(rightInner, _currentBorderColor, 5f, true);
+        DrawTemplateDecorations(sectionY, textureTint);
+    }
+
+    private void DrawTemplateDecorations(float sectionY, Color textureTint)
+    {
         // Великі кам'яні блоки є частиною самої заготовки й рухаються разом із нею.
         Vector2[] leftBlock =
         {
@@ -463,8 +499,8 @@ public partial class LevelGenerator : Node2D
             if (waterPool[i].Visible)
             {
                 float waterY = waterPool[i].Position.Y;
-                // Водяна печера має довжину 2800 (HalfHeight=1400). Якщо ціль потрапляє в зону печери:
-                if (Mathf.Abs(waterY - targetY) < (1400f + halfHeight))
+                // Використовуємо фактичну висоту водоспаду з Water.cs.
+                if (Mathf.Abs(waterY - targetY) < (Water.HalfHeight + halfHeight))
                 {
                     return true;
                 }
@@ -478,7 +514,7 @@ public partial class LevelGenerator : Node2D
         if (scene == null)
             return;
 
-        // Не спавнимо камінці, якщо на лінії спавну або поруч знаходиться водяна печера
+        // Не спавнимо камінці поверх короткого бокового водоспаду.
         if (scene == obstacleScene && IsWaterInZone(1000f, 400f))
         {
             return;
@@ -503,11 +539,11 @@ public partial class LevelGenerator : Node2D
 
         Vector2 spawnPosition;
 
-        // Водяна печера звужує основний тунель по центру (X = 0)
+        // Водоспад сам обирає ліву або праву стіну; кореневий вузол лишається по центру.
         if (scene == waterScene)
         {
-            // Спавнимо по центру тунелю. Довжина печери 2800px, тому починаємо з Y = 2200px
-            spawnPosition = new Vector2(0f, 2200f);
+            // Короткий водоспад входить у кадр без довгого порожнього очікування.
+            spawnPosition = new Vector2(0f, 1450f);
             obj.Scale = Vector2.One;
             obj.Rotation = 0f;
             if (obj is Water waterNode)
@@ -538,9 +574,9 @@ public partial class LevelGenerator : Node2D
         }
         else
         {
-            // Монетки також плавно розподіляються по ширині тунелю
-            // Якщо є водяна печера, спавнимо вужче по центру тунелю
-            float spawnWidth = IsWaterInZone(1000f, 750f) ? 80f : 240f;
+            // Боковий водоспад не перекриває весь прохід, тому монети
+            // продовжують використовувати повну ігрову ширину.
+            float spawnWidth = 240f;
             float randomX = (float)GD.RandRange(-spawnWidth, spawnWidth);
             spawnPosition = new Vector2(randomX, 1000f);
             obj.Scale = Vector2.One;

@@ -1,20 +1,85 @@
-[gd_scene format=3 uid="uid://ccjjaufyefsd1"]
+[gd_scene load_steps=12 format=3 uid="uid://ccjjaufyefsd1"]
 
 [ext_resource type="Script" uid="uid://c4c07eo5bh4o0" path="res://Scripts/Water.cs" id="1_water"]
-[ext_resource type="Shader" uid="uid://b8t05w315v34p" path="res://water_shader.gdshader" id="2_shader"]
+[ext_resource type="Texture2D" path="res://Textures/Generated/waterfall_sheet_v3.png" id="2_sheet"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_waterfall"]
-shader = ExtResource("2_shader")
+[sub_resource type="AtlasTexture" id="AtlasTexture_0"]
+atlas = ExtResource("2_sheet")
+region = Rect2(0, 0, 256, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1"]
+atlas = ExtResource("2_sheet")
+region = Rect2(256, 0, 256, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2"]
+atlas = ExtResource("2_sheet")
+region = Rect2(512, 0, 256, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3"]
+atlas = ExtResource("2_sheet")
+region = Rect2(768, 0, 256, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4"]
+atlas = ExtResource("2_sheet")
+region = Rect2(0, 512, 256, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5"]
+atlas = ExtResource("2_sheet")
+region = Rect2(256, 512, 256, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6"]
+atlas = ExtResource("2_sheet")
+region = Rect2(512, 512, 256, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7"]
+atlas = ExtResource("2_sheet")
+region = Rect2(768, 512, 256, 512)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_waterfall"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7")
+}],
+"loop": true,
+"name": &"flow",
+"speed": 8.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_water"]
+size = Vector2(92, 570)
 
 [node name="Water" type="Area2D" groups=["Water"]]
 collision_layer = 4
 collision_mask = 0
 script = ExtResource("1_water")
 
-[node name="WaterPolygon" type="Polygon2D" parent="."]
-material = SubResource("ShaderMaterial_waterfall")
-color = Color(0.10, 0.66, 0.78, 0.82)
-polygon = PackedVector2Array(-305, -950, -120, -950, -120, 950, -305, 950)
+[node name="WaterfallSprite" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+scale = Vector2(0.76, 1.24)
+sprite_frames = SubResource("SpriteFrames_waterfall")
+animation = &"flow"
 
-[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
-polygon = PackedVector2Array(-305, -950, -120, -950, -120, 950, -305, 950)
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_water")

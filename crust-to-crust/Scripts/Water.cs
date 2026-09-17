@@ -3,66 +3,65 @@ using Godot;
 public partial class Water : Area2D
 {
 	[Export] public float speed = 500f;
-	public const float CaveHeight = 1900f;
-	public const float HalfHeight = 950f;
-	private const int SegmentCount = 30;
+	public const float CaveHeight = 640f;
+	public const float HalfHeight = CaveHeight * 0.5f;
 
-	private Polygon2D _waterPolygon;
-	private CollisionPolygon2D _waterShape;
+	private AnimatedSprite2D _waterfallSprite;
+	private CollisionShape2D _waterShape;
+	private bool _fromLeft;
 
 	public override void _Ready()
 	{
-		_waterPolygon = GetNodeOrNull<Polygon2D>("WaterPolygon");
-		_waterShape = GetNodeOrNull<CollisionPolygon2D>("CollisionPolygon2D");
+		_waterfallSprite = GetNodeOrNull<AnimatedSprite2D>("WaterfallSprite");
+		_waterShape = GetNodeOrNull<CollisionShape2D>("CollisionShape2D");
 		GenerateRandomCaveGeometry();
+
+		if (_waterfallSprite != null)
+		{
+			_waterfallSprite.Play("flow");
+			_waterfallSprite.Frame = GD.RandRange(0, 7);
+			_waterfallSprite.SpeedScale = (float)GD.RandRange(0.92, 1.12);
+		}
 	}
 
-	// Назва методу збережена для пулу LevelGenerator. Замість печери він
-	// створює довгий водоспад від випадково обраної стіни тунелю.
+	// Назву методу залишено для сумісності з пулом LevelGenerator.
+	// Тепер він лише ставить готовий анімований водоспад біля випадкової стіни.
 	public void GenerateRandomCaveGeometry()
 	{
-		bool fromLeft = GD.RandRange(0, 1) == 0;
-		// Початок завіси знаходиться всередині видимого краю тунелю,
-		// а не за кам'яною стіною, тому гравець гарантовано може її торкнутися.
-		float wallX = fromLeft ? -305f : 305f;
-		Vector2[] wallEdge = new Vector2[SegmentCount + 1];
-		Vector2[] curtainEdge = new Vector2[SegmentCount + 1];
+		_fromLeft = GD.RandRange(0, 1) == 0;
+		float side = _fromLeft ? -1f : 1f;
 
-		for (int i = 0; i <= SegmentCount; i++)
+		if (_waterfallSprite != null)
 		{
-			float progress = (float)i / SegmentCount;
-			float y = -HalfHeight + progress * CaveHeight;
-			float ripple = Mathf.Sin(progress * Mathf.Pi * 7f) * 14f
-				+ Mathf.Sin(progress * Mathf.Pi * 13f + 0.8f) * 7f;
-			float width = 185f + Mathf.Sin(progress * Mathf.Pi * 3f + 0.4f) * 28f + ripple;
-			wallEdge[i] = new Vector2(wallX, y);
-			curtainEdge[i] = new Vector2(wallX + (fromLeft ? width : -width), y);
+			// Скеля-джерело заходить у стіну, а сама вода виступає в прохід.
+			_waterfallSprite.Position = new Vector2(side * 244f, 0f);
+			_waterfallSprite.FlipH = !_fromLeft;
+			_waterfallSprite.Frame = GD.RandRange(0, 7);
 		}
 
-		Vector2[] points = new Vector2[(SegmentCount + 1) * 2];
-		for (int i = 0; i <= SegmentCount; i++) points[i] = wallEdge[i];
-		for (int i = 0; i <= SegmentCount; i++)
-			points[SegmentCount + 1 + i] = curtainEdge[SegmentCount - i];
-
-		if (_waterPolygon != null)
+		if (_waterShape != null)
 		{
-			_waterPolygon.Polygons = new Godot.Collections.Array();
-			_waterPolygon.Polygon = points;
+			// Колізія охоплює лише струмінь, без прозорих країв спрайта.
+			_waterShape.Position = new Vector2(side * 224f, 18f);
 		}
-		if (_waterShape != null) _waterShape.Polygon = points;
 	}
 
 	public void UpdateBiomeColors(Color wallColor, Color borderColor)
 	{
-		if (_waterPolygon == null) return;
-		float heat = Mathf.Clamp(wallColor.R * 2.2f, 0f, 0.7f);
-		_waterPolygon.Color = new Color(0.08f + heat * 0.10f, 0.62f - heat * 0.12f, 0.82f - heat * 0.08f, 0.82f);
+		if (_waterfallSprite == null) return;
+
+		float heat = Mathf.Clamp(wallColor.R * 1.35f, 0f, 0.35f);
+		_waterfallSprite.Modulate = new Color(
+			1f,
+			1f - heat * 0.16f,
+			1f - heat * 0.08f,
+			1f);
 	}
 
 	public override void _Process(double delta)
 	{
 		Position += new Vector2(0f, -speed * (float)delta);
-		if (Position.Y < -1700f)
+		if (Position.Y < -1050f)
 		{
 			Visible = false;
 			ProcessMode = ProcessModeEnum.Disabled;
