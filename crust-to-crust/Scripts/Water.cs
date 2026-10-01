@@ -9,6 +9,8 @@ public partial class Water : Area2D
 	private AnimatedSprite2D _waterfallSprite;
 	private CollisionShape2D _waterShape;
 	private bool _fromLeft;
+    public bool FromLeft => _fromLeft;
+    public Vector2 StreamCenter => GlobalPosition + (_waterShape?.Position ?? Vector2.Zero);
 
 	public override void _Ready()
 	{
@@ -34,7 +36,7 @@ public partial class Water : Area2D
 		if (_waterfallSprite != null)
 		{
 			// Скеля-джерело заходить у стіну, а сама вода виступає в прохід.
-			_waterfallSprite.Position = new Vector2(side * 244f, 0f);
+			_waterfallSprite.Position = new Vector2(side * 172f, 0f);
 			_waterfallSprite.FlipH = !_fromLeft;
 			_waterfallSprite.Frame = GD.RandRange(0, 7);
 		}
@@ -42,7 +44,7 @@ public partial class Water : Area2D
 		if (_waterShape != null)
 		{
 			// Колізія охоплює лише струмінь, без прозорих країв спрайта.
-			_waterShape.Position = new Vector2(side * 224f, 18f);
+			_waterShape.Position = new Vector2(side * 145f, -20f);
 		}
 	}
 
@@ -63,6 +65,7 @@ public partial class Water : Area2D
 		Position += new Vector2(0f, -speed * (float)delta);
 		if (Position.Y < -1050f)
 		{
+			SetDeferred("monitorable", false);
 			Visible = false;
 			ProcessMode = ProcessModeEnum.Disabled;
 		}

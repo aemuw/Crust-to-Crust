@@ -3,9 +3,9 @@
 [node name="Surface" type="Node2D" unique_id=645184170]
 
 [node name="Sky" type="ColorRect" parent="." unique_id=1550342528]
-offset_left = -1200.0
-offset_top = -1300.0
-offset_right = 1200.0
+offset_left = -5000.0
+offset_top = -5000.0
+offset_right = 5000.0
 offset_bottom = -450.0
 color = Color(0.035, 0.07, 0.12, 1)
 

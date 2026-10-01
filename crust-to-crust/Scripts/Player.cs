@@ -2,7 +2,7 @@ using Godot;
 
 public partial class Player : CharacterBody2D
 {
-    [Export] public float HorizontalSpeed = 520f;
+    [Export] public float HorizontalSpeed = 380f;
     [Export] public float HorizontalDamping = 12f;
     [Export] public float FixedY = -200f;
     [Export] public float MinX = -310f;
@@ -10,11 +10,12 @@ public partial class Player : CharacterBody2D
 
     private float _currentVelocityX = 0f;
 
-    [Export] public float MinBurnTime = 14f;
-    [Export] public float MaxBurnTime = 16f;
+    [Export] public float MinBurnTime = 22f;
+    [Export] public float MaxBurnTime = 26f;
 
     private bool _isOnFire = false;
     private float _burnTimer = 0f;
+    private float _coolingGrace = 0f;
     private float _currentBurnDuration = 0f;
 
     private bool _isDead = false;
@@ -29,6 +30,7 @@ public partial class Player : CharacterBody2D
     private CpuParticles2D _smokeParticles;
     private CpuParticles2D _debrisParticles;
     private Hud _hud;
+    private Area2D _hitbox;
     private int _score = 0;
     private LevelGenerator _levelGenerator;
     private AudioStreamPlayer _coinSfx;
@@ -79,6 +81,7 @@ public partial class Player : CharacterBody2D
         InitSoundEffects();
 
         Area2D hitbox = GetNodeOrNull<Area2D>("Hitbox");
+        _hitbox = hitbox;
         if (hitbox != null)
         {
             hitbox.AreaEntered += OnAreaEntered;
@@ -178,33 +181,48 @@ public partial class Player : CharacterBody2D
         _currentVelocityX = 0f;
         SetProcessUnhandledKeyInput(false);
 
+        Extinguish();
+        _coolingGrace = 5f;
+        Scale = Vector2.One;
+        if (_camera != null) { _camera.IgnoreRotation = false; _camera.Offset = Vector2.Zero; }
         var tween = CreateTween();
-        
-        // 1. Потужний виліт вгору крізь поверхню у невагомість
-        tween.TweenProperty(this, "position:y", -520f, 0.9f)
+        // Exit through the lower surface, slow at the apex, then turn the camera.
+        tween.TweenProperty(this, "position", new Vector2(0f, 850f), 1.8f)
             .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
-        tween.Parallel().TweenProperty(this, "position:x", 0f, 0.7f)
-            .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
-        tween.Parallel().TweenProperty(this, "rotation", Mathf.DegToRad(360f), 0.9f)
-            .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
-
-        // 2. Зависання в апогеї польоту (невагомість)
-        tween.TweenInterval(0.35f);
-
-        // 3. Плавний переворот носом донизу і початок нового вільного падіння назад у шахту
-        tween.TweenProperty(this, "rotation", Mathf.DegToRad(720f), 0.7f)
-            .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.InOut);
-        tween.TweenProperty(this, "position:y", FixedY, 0.7f)
-            .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-
-        // 4. Легкий пружний відскок при вході в стаціонарну позицію
-        tween.TweenProperty(this, "scale", new Vector2(1.15f, 0.85f), 0.1f);
-        tween.TweenProperty(this, "scale", Vector2.One, 0.15f);
-
+        if (_camera != null)
+        {
+            tween.Parallel().TweenProperty(_camera, "position", new Vector2(0f, 700f), 1.8f)
+                .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+            tween.Parallel().TweenProperty(_camera, "zoom", new Vector2(0.85f, 0.85f), 1.8f);
+        }
+        tween.TweenCallback(Callable.From(() => _levelGenerator?.HideTunnelForEmergence()));
+        tween.TweenProperty(this, "position:y", 890f, 0.45f)
+            .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
+        tween.TweenInterval(_levelGenerator?.SurfaceHangDuration ?? 0.65f);
+        if (_camera != null)
+            tween.TweenProperty(_camera, "rotation", Mathf.Pi, 1.7f)
+                .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+        tween.TweenProperty(this, "rotation", Mathf.Pi, 0.45f)
+            .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
         tween.TweenCallback(Callable.From(() =>
         {
+            // Rebase all coordinates together: the rendered view stays identical.
+            Position = new Vector2(0f, -890f);
             Rotation = 0f;
-            Position = new Vector2(0f, FixedY);
+            if (_camera != null) { _camera.Position = new Vector2(0f, -700f); _camera.Rotation = 0f; }
+            _levelGenerator?.RebaseEmergence();
+        }));
+        tween.TweenInterval(0.25f);
+        tween.TweenProperty(this, "position:y", FixedY, 1.65f)
+            .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+        if (_camera != null)
+        {
+            tween.Parallel().TweenProperty(_camera, "position", Vector2.Zero, 1.65f)
+                .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+            tween.Parallel().TweenProperty(_camera, "zoom", Vector2.One, 1.65f);
+        }
+        tween.TweenCallback(Callable.From(() =>
+        {
             _currentVelocityX = 0f;
             _isIntroPlaying = false;
             SetProcessUnhandledKeyInput(true);
@@ -214,7 +232,7 @@ public partial class Player : CharacterBody2D
 
     public override void _Process(double delta)
     {
-        if (!_isGameStarted || _isIntroPlaying) return;
+        if (!_isGameStarted || _isIntroPlaying || _isDead) return;
 
         _hud?.UpdateDepth(_levelGenerator?.CurrentDepth ?? 0f);
 
@@ -230,7 +248,7 @@ public partial class Player : CharacterBody2D
 
         // Плавне прискорення та гальмування (damping)
         float targetVelocityX = moveInput * HorizontalSpeed;
-        _currentVelocityX = Mathf.Lerp(_currentVelocityX, targetVelocityX, (float)delta * HorizontalDamping);
+        _currentVelocityX = Mathf.Lerp(_currentVelocityX, targetVelocityX, 1f - Mathf.Exp(-(float)delta * HorizontalDamping));
 
         // Оновлюємо горизонтальну позицію кубика з м'якими межами тунелю
         float newX = Position.X + _currentVelocityX * (float)delta;
@@ -262,7 +280,7 @@ public partial class Player : CharacterBody2D
         if (!_isDead)
         {
             float targetTilt = (_currentVelocityX / HorizontalSpeed) * 0.16f;
-            Rotation = Mathf.Lerp(Rotation, targetTilt, (float)delta * 14f);
+            Rotation = Mathf.Lerp(Rotation, targetTilt, Mathf.Clamp((float)delta * 14f, 0f, 1f));
         }
 
         // Плавний нагрів при наближенні до ядра
@@ -273,6 +291,19 @@ public partial class Player : CharacterBody2D
     {
         if (_levelGenerator == null || _isDead) return;
 
+        _coolingGrace = Mathf.Max(0f, _coolingGrace - delta);
+        // Keep cooling while inside the stream, including an overlap that began
+        // during an intro or a pooled collision update.
+        if (_hitbox != null && _hitbox.Monitoring)
+        {
+            foreach (Area2D area in _hitbox.GetOverlappingAreas())
+            {
+                if (area is not Water || !area.IsVisibleInTree() || !area.Monitorable) continue;
+                _coolingGrace = 7f;
+                if (_isOnFire) Extinguish();
+                break;
+            }
+        }
         float distToCore = Mathf.Abs(_levelGenerator.CurrentDepth - _levelGenerator.CoreDepthPoint);
 
         // 1. Попередній нагрів: коли підлітаємо ближче 4500м, кубик поступово червоніє
@@ -286,7 +317,7 @@ public partial class Player : CharacterBody2D
 			if (_characterSprite != null)
 				_characterSprite.Modulate = Colors.White.Lerp(new Color(1.25f, 0.55f, 0.28f), heatFactor * 0.75f);
             // Ближче 2000м від ядра кубик остаточно займається полум'ям
-            if (distToCore < 2000f)
+            if (distToCore < 2000f && _coolingGrace <= 0f)
             {
                 CatchFire();
             }
@@ -335,7 +366,7 @@ public partial class Player : CharacterBody2D
 
     private void OnAreaEntered(Area2D area)
     {
-        if (_isDead || _isIntroPlaying || !_isGameStarted) return;
+        if (_isDead || _isIntroPlaying || !_isGameStarted || !area.IsVisibleInTree()) return;
 
         // Obstacle (камінець) - вбиває одразу
         if (area.CollisionLayer == 2 || area.IsInGroup("Obstacle") || area.Name.ToString().Contains("Obstacle"))
@@ -350,6 +381,7 @@ public partial class Player : CharacterBody2D
             _score++;
             _hud?.UpdateScore(_score);
             _coinSfx?.Play();
+            area.SetDeferred("monitorable", false);
             area.Visible = false;
             area.SetDeferred("process_mode", (int)Node.ProcessModeEnum.Disabled);
             return;
@@ -392,6 +424,7 @@ public partial class Player : CharacterBody2D
 
     private void Extinguish()
     {
+        _coolingGrace = 7f;
         if (!_isOnFire && Scale == Vector2.One) 
             return;
 
@@ -428,6 +461,7 @@ public partial class Player : CharacterBody2D
         if (_isDead) return;
 
         _isDead = true;
+        _levelGenerator?.StopFalling();
         _isOnFire = false;
         
         SetProcessUnhandledKeyInput(false);

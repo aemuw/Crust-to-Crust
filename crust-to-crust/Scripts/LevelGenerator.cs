@@ -16,7 +16,7 @@ public partial class LevelGenerator : Node2D
     private List<Node2D> coinPool = new List<Node2D>();
 
     private float obstacleTimer = 0f;
-    [Export] private float obstacleInterval = 1.5f;
+    [Export] private float obstacleInterval = 2.6f;
 
     private float waterTimer = 0f;
     private float nextWaterInterval = 5f;
@@ -25,16 +25,15 @@ public partial class LevelGenerator : Node2D
     private float nextCoinInterval = 2f;
 
     public float CurrentDepth = 0f;
-    [Export] public float FallSpeed = 550f; // Пришвидшено для динамічного відчуття польоту
+    [Export] public float FallSpeed = 340f; // Пришвидшено для динамічного відчуття польоту
     
     [Export] public float CoreDepthPoint = 20000f; // Відстань до ядра 20 000 метрів
     [Export] public float TunnelLength = 40000f;
-    [Export] public float MinFallSpeed = 250f;
-    [Export] public float SurfaceHangDuration = 1.5f;
+    [Export] public float MinFallSpeed = 220f;
+    [Export] public float SurfaceHangDuration = 0.65f;
     
     private float _initialFallSpeed;
     private bool _isHanging = false;
-    private float _hangTimer = 0f;
 
     // Стіни тунелю для динамічної зміни кольору породи від глибини
     private ColorRect _leftWall;
@@ -58,6 +57,11 @@ public partial class LevelGenerator : Node2D
     private static readonly float[] RightTunnelEdges = { 320f, 292f, 285f, 275f, 270f, 285f, 320f };
 
     public bool IsGameActive = false;
+    public float ActivePlaySeconds { get; private set; }
+    public float Difficulty => Mathf.Clamp(ActivePlaySeconds / 180f, 0f, 1f);
+    public float CurrentObstacleInterval => Mathf.Lerp(obstacleInterval, 1.25f, Difficulty);
+    private bool _tunnelHazardsVisible;
+
 
     public override void _Ready()
     {
@@ -94,12 +98,14 @@ public partial class LevelGenerator : Node2D
         InitializePool(coinScene, CoinPoolSize, coinPool);
         // Виставляємо стартовий біом до першого кадру гри, щоб колір не стрибав на Start.
         UpdateWallColors();
+        SetTunnelHazardsVisible(false);
     }
 
     public void StartGame()
     {
         // Під час стрибка з поверхні секції ще не рухаються.
         IsGameActive = false;
+        SetTunnelHazardsVisible(false);
     }
 
     public void BeginFalling()
@@ -109,6 +115,7 @@ public partial class LevelGenerator : Node2D
         if (_surfaceRoot != null)
             _surfaceRoot.Visible = false;
         IsGameActive = true;
+        SetTunnelHazardsVisible(true);
     }
 
     private void InitializePool(PackedScene scene, int size, List<Node2D> pool)
@@ -120,10 +127,16 @@ public partial class LevelGenerator : Node2D
         {
             Node2D obj = (Node2D)scene.Instantiate();
             obj.Visible = false;
+            if (obj is Area2D pooledArea) pooledArea.Monitorable = false;
             obj.ProcessMode = ProcessModeEnum.Disabled;
             AddChild(obj);
             pool.Add(obj);
         }
+    }
+
+    public override void _PhysicsProcess(double delta)
+    {
+        if (_tunnelHazardsVisible) UpdateCrystalWaterClearance();
     }
 
     public override void _Process(double delta)
@@ -136,6 +149,7 @@ public partial class LevelGenerator : Node2D
             return;
         }
 
+        ActivePlaySeconds += (float)delta;
         CurrentDepth += FallSpeed * (float)delta;
         _tunnelVisualDepth = CurrentDepth;
         ScrollEditableTunnelSegments((float)delta);
@@ -143,19 +157,21 @@ public partial class LevelGenerator : Node2D
         if (CurrentDepth < CoreDepthPoint)
         {
             // Динамічне прискорення при падінні у бік ядра
-            FallSpeed += 16f * (float)delta;
+            FallSpeed = Mathf.Min(Mathf.Lerp(490f, 570f, Difficulty), FallSpeed + 4f * (float)delta);
         }
         else if (CurrentDepth < TunnelLength)
         {
             // Гравітація сповільнює кубик після прольоту ядра до поверхні іншого боку
-            FallSpeed -= 16f * (float)delta;
+            FallSpeed -= 4f * (float)delta;
             if (FallSpeed < MinFallSpeed)
                 FallSpeed = MinFallSpeed;
         }
         else
         {
             // Повний виліт з іншого кінця планети (40 000м)
+            SetTunnelHazardsVisible(false);
             _isHanging = true;
+            IsGameActive = false;
             FallSpeed = 0f;
 
             // Ховаємо активні перешкоди під час переходу на інший бік планети
@@ -165,14 +181,13 @@ public partial class LevelGenerator : Node2D
 
             // На час вильоту та повернення знову показуємо поверхню планети.
             if (_surfaceRoot != null)
-                _surfaceRoot.Visible = true;
+                { _surfaceRoot.Visible = true; _surfaceRoot.Rotation = Mathf.Pi; }
 
             if (_player != null)
             {
                 // Запуск кінематографічної анімації вильоту в небо, розвороту у невагомості і початку нового падіння
                 _player.PlayEmergenceAnimation(() =>
                 {
-                    ResetForNextTunnelCycle();
                     BeginFalling();
                 });
             }
@@ -192,13 +207,14 @@ public partial class LevelGenerator : Node2D
         UpdateWallColors();
 
         obstacleTimer += (float)delta;
-        if (obstacleTimer >= obstacleInterval)
+        if (obstacleTimer >= CurrentObstacleInterval)
         {
             obstacleTimer = 0f;
             SpawnFromPool(obstacleScene, obstaclePool);		
         }
 
         // Спавн води: на початку рідко (12-16с), а ближче до ядра (зона нагріву < 5000м) значно частіше (4-7с)
+        if (Mathf.Abs(CurrentDepth - CoreDepthPoint) < 5000f) nextWaterInterval = Mathf.Min(nextWaterInterval, 4f);
         waterTimer += (float)delta;
         if (waterTimer >= nextWaterInterval)
         {
@@ -243,6 +259,14 @@ public partial class LevelGenerator : Node2D
         float worldY = _tunnelVisualDepth + screenY;
         left = SampleTunnelEdge(worldY, LeftTunnelEdges);
         right = SampleTunnelEdge(worldY, RightTunnelEdges);
+        // Keep the player in the open stream instead of the lethal wall behind it.
+        foreach (Node node in GetTree().GetNodesInGroup("Water"))
+        {
+            if (node is not Water water || !water.IsVisibleInTree() || !water.Monitorable) continue;
+            if (Mathf.Abs(water.Position.Y - screenY) > Water.HalfHeight + 120f) continue;
+            if (water.FromLeft) left = Mathf.Max(left, -184f);
+            else right = Mathf.Min(right, 184f);
+        }
     }
 
     public override void _Draw()
@@ -303,6 +327,65 @@ public partial class LevelGenerator : Node2D
         }
     }
 
+    public void SetTunnelHazardsVisible(bool visible)
+    {
+        _tunnelHazardsVisible = visible;
+        if (_tunnelSegmentsRoot == null) return;
+        foreach (Node2D segment in _tunnelSegmentsRoot.GetChildren())
+        {
+            segment.GetNodeOrNull<CanvasItem>("LeftBlockLarge")?.Set("visible", visible);
+            segment.GetNodeOrNull<CanvasItem>("RightBlockLarge")?.Set("visible", visible);
+            foreach (Node node in segment.FindChildren("*", "Area2D", true, false))
+                if (node is Area2D area && area.IsInGroup("Obstacle")) area.SetDeferred("monitorable", visible);
+        }
+        UpdateCrystalWaterClearance();
+    }
+
+    private void UpdateCrystalWaterClearance()
+    {
+        foreach (Node node in GetTree().GetNodesInGroup("TunnelCrystal"))
+        {
+            if (node is not Sprite2D crystal) continue;
+            bool clear = _tunnelHazardsVisible;
+            if (clear)
+            {
+                foreach (Node waterNode in GetTree().GetNodesInGroup("Water"))
+                {
+                    if (waterNode is not Water water || !water.IsVisibleInTree() || !water.Monitorable) continue;
+                    if (Mathf.Abs(crystal.GlobalPosition.Y - water.GlobalPosition.Y) < Water.HalfHeight + 170f &&
+                        Mathf.Abs(crystal.GlobalPosition.X - water.StreamCenter.X) < 140f)
+                    { clear = false; break; }
+                }
+            }
+            crystal.Visible = clear;
+            foreach (Node child in crystal.GetChildren())
+                if (child is Area2D area) area.SetDeferred("monitorable", clear);
+        }
+    }
+
+    public void StopFalling()
+    {
+        IsGameActive = false;
+        FallSpeed = 0f;
+        UpdateActiveObjectsSpeed(obstaclePool);
+        UpdateActiveObjectsSpeed(waterPool);
+        UpdateActiveObjectsSpeed(coinPool);
+    }
+
+    public void HideTunnelForEmergence()
+    {
+        if (_tunnelSegmentsRoot != null) _tunnelSegmentsRoot.Visible = false;
+    }
+
+    public void RebaseEmergence()
+    {
+        ResetForNextTunnelCycle();
+        FallSpeed = MinFallSpeed;
+        if (_surfaceRoot != null) _surfaceRoot.Rotation = 0f;
+        foreach (var entry in _initialTunnelSegmentPositions) entry.Key.Position = entry.Value;
+        if (_tunnelSegmentsRoot != null) _tunnelSegmentsRoot.Visible = true;
+    }
+
     private void ResetForNextTunnelCycle()
     {
         CurrentDepth = 0f;
@@ -312,6 +395,8 @@ public partial class LevelGenerator : Node2D
         obstacleTimer = 0f;
         waterTimer = 0f;
         coinTimer = 0f;
+        nextWaterInterval = 12f;
+        nextCoinInterval = 2f;
 
         foreach (KeyValuePair<Node2D, Vector2> entry in _initialTunnelSegmentPositions)
         {
@@ -419,6 +504,7 @@ public partial class LevelGenerator : Node2D
         for (int i = 0; i < pool.Count; i++)
         {
             pool[i].Visible = false;
+            if (pool[i] is Area2D pooledArea) pooledArea.SetDeferred("monitorable", false);
             pool[i].ProcessMode = ProcessModeEnum.Disabled;
         }
     }
@@ -430,6 +516,7 @@ public partial class LevelGenerator : Node2D
             if (pool[i].Visible)
             {
                 pool[i].Set("speed", FallSpeed);
+                if (pool[i] is Obstacle obstacle) obstacle.MotionDifficulty = Difficulty;
             }
         }
     }
@@ -439,7 +526,7 @@ public partial class LevelGenerator : Node2D
     {
         if (_leftWall == null || _rightWall == null) return;
 
-        float progressToCore = Mathf.Clamp(CurrentDepth / CoreDepthPoint, 0f, 1f);
+        float progressToCore = Mathf.Clamp((CoreDepthPoint - Mathf.Abs(CurrentDepth - CoreDepthPoint)) / CoreDepthPoint, 0f, 1f);
 
         Color wallColor;
         Color borderColor;
@@ -477,7 +564,7 @@ public partial class LevelGenerator : Node2D
             if (node is CanvasItem item) item.Modulate = editableTint;
         foreach (Node node in GetTree().GetNodesInGroup("RockBackground"))
             if (node is CanvasItem item) item.Modulate = new Color(editableTint.R * 0.30f, editableTint.G * 0.30f, editableTint.B * 0.30f);
-        Color crystalTint = wallColor.R > 0.22f ? new Color(1f, 0.24f, 0.06f) : new Color(0.34f, 0.76f, 0.92f);
+        Color crystalTint = wallColor.R > 0.22f ? new Color(0.78f, 0.53f, 0.41f) : new Color(0.76f, 0.83f, 0.86f);
         foreach (Node node in GetTree().GetNodesInGroup("Crystal"))
             if (node is CanvasItem item) item.Modulate = crystalTint;
         QueueRedraw();
@@ -558,7 +645,7 @@ public partial class LevelGenerator : Node2D
         else if (scene == obstacleScene)
         {
             // Камені плавно і вільно спавняться по всій ширині тунелю (-220f .. +220f)
-            float randomX = (float)GD.RandRange(-220.0, 220.0);
+            float randomX = (float)GD.RandRange(-165.0, 165.0);
             spawnPosition = new Vector2(randomX, 1000f);
 
             // Камінці різних розмірів та випадкових поворотів
@@ -569,6 +656,8 @@ public partial class LevelGenerator : Node2D
 
             if (obj is Obstacle obs)
             {
+                obs.ConfigureVariant(GD.RandRange(0, 1));
+                obs.MotionDifficulty = Difficulty;
                 obs.TriggerAppear(targetScale);
             }
         }
@@ -576,7 +665,7 @@ public partial class LevelGenerator : Node2D
         {
             // Боковий водоспад не перекриває весь прохід, тому монети
             // продовжують використовувати повну ігрову ширину.
-            float spawnWidth = 240f;
+            float spawnWidth = 175f;
             float randomX = (float)GD.RandRange(-spawnWidth, spawnWidth);
             spawnPosition = new Vector2(randomX, 1000f);
             obj.Scale = Vector2.One;
@@ -590,6 +679,7 @@ public partial class LevelGenerator : Node2D
 
         obj.Position = spawnPosition;
         obj.Visible = true;
+        if (obj is Area2D pooledArea) pooledArea.SetDeferred("monitorable", true);
         obj.ProcessMode = ProcessModeEnum.Inherit;
         obj.Set("speed", FallSpeed);
     }

@@ -13,9 +13,6 @@
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_3mj47"]
 
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_1vw2r"]
-load_path = "res://.godot/imported/Gold_10.png-e7a9414e46643bf89b379d81a80843e8.ctex"
-
 [sub_resource type="SpriteFrames" id="SpriteFrames_ihk4x"]
 animations = [{
 "frames": [{
@@ -47,7 +44,7 @@ animations = [{
 "texture": ExtResource("10_ubsuj")
 }, {
 "duration": 1.0,
-"texture": SubResource("CompressedTexture2D_1vw2r")
+"texture": ExtResource("2_tp5fx")
 }],
 "loop": 1,
 "name": &"Spin",
