@@ -92,6 +92,3 @@ public partial class ProgressionSmoke : Node
         catch (Exception error) { Engine.TimeScale = 1f; GD.PushError(error.ToString()); GetTree().Paused = false; GetTree().Quit(1); }
     }
 }
-
-
-
