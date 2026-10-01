@@ -30,13 +30,14 @@ public partial class Coin : Area2D
 			_appearTimer += (float)delta;
 			float t = Mathf.Clamp(_appearTimer / AppearDuration, 0f, 1f);
 			// Плавне масштабування та виринання монетки
-			float easeOutBack = 1f + 1.70158f * Mathf.Pow(t - 1f, 3f) + 1.70158f * Mathf.Pow(t - 1f, 2f);
+			float easeOutBack = 1f + 2.70158f * Mathf.Pow(t - 1f, 3f) + 1.70158f * Mathf.Pow(t - 1f, 2f);
 			Scale = Vector2.One * Mathf.Clamp(easeOutBack, 0f, 1.2f);
 			Modulate = new Color(1f, 1f, 1f, t);
 		}
 		
 		if (Position.Y < -500f)
 		{
+			SetDeferred("monitorable", false);
 			Visible = false;
 			ProcessMode = ProcessModeEnum.Disabled;
 		}

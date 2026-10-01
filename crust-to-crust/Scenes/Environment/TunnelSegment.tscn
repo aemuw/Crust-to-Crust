@@ -2,6 +2,17 @@
 
 [ext_resource type="Texture2D" uid="uid://dkkbdpc2lcnec" path="res://Textures/Generated/rock_wall_large.png" id="1_rock"]
 
+[ext_resource type="Texture2D" path="res://Textures/Generated/hazards_atlas.png" id="2_hazards"]
+
+[ext_resource type="Shader" path="res://Shaders/CaveCrystal.gdshader" id="3_crystal_style"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_crystal"]
+shader = ExtResource("3_crystal_style")
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_crystal"]
+atlas = ExtResource("2_hazards")
+region = Rect2(1448, 0, 724, 724)
+
 [node name="TunnelSegment" type="Node2D" unique_id=1520080434 groups=["TunnelSegment"]]
 
 [node name="DeepRock" type="Polygon2D" parent="." unique_id=2041658843 groups=["RockBackground"]]
@@ -15,28 +26,6 @@ uv = PackedVector2Array(0, 0, 680, 0, 680, 720, 0, 720)
 texture = ExtResource("1_rock")
 polygon = PackedVector2Array(-315, 205, -252, 214, -198, 278, -228, 347, -304, 366)
 uv = PackedVector2Array(0, 0, 63, 9, 117, 73, 87, 142, 11, 161)
-
-[node name="LeftCrystalShort" type="Polygon2D" parent="." unique_id=13530551 groups=["Crystal"]]
-color = Color(0.22, 0.58, 0.78, 0.92)
-polygon = PackedVector2Array(-285, 556, -225, 493, -248, 565)
-
-[node name="RightCrystalTall" type="Polygon2D" parent="." unique_id=1812081195 groups=["Crystal"]]
-position = Vector2(52, 298)
-rotation = -1.1196375
-color = Color(0.32, 0.73, 0.88, 0.92)
-polygon = PackedVector2Array(302, 160, 270, 70, 251, 159)
-
-[node name="RightCrystalShort" type="Polygon2D" parent="." unique_id=1360180406 groups=["Crystal"]]
-position = Vector2(22.93, 309.975)
-rotation = -1.0559242
-color = Color(0.22, 0.58, 0.78, 0.92)
-polygon = PackedVector2Array(284, 167, 225, 103, 248, 176)
-
-[node name="LeftCrystalTall" type="Polygon2D" parent="." unique_id=1141811964 groups=["Crystal"]]
-position = Vector2(320, 428)
-rotation = 1.0062203
-color = Color(0.32, 0.73, 0.88, 0.92)
-polygon = PackedVector2Array(-302, 550, -266, 455, -250, 548)
 
 [node name="RightBlockLarge" type="Polygon2D" parent="." unique_id=1963712663 groups=["RockForeground"]]
 texture = ExtResource("1_rock")
@@ -131,26 +120,77 @@ collision_mask = 0
 [node name="Shape" type="CollisionPolygon2D" parent="RightBlockCollision"]
 polygon = PackedVector2Array(315, 470, 246, 450, 190, 505, 215, 578, 304, 600)
 
-[node name="LeftCrystalTallCollision" type="Area2D" parent="." groups=["Obstacle"]]
-collision_layer = 2
-collision_mask = 0
-[node name="Shape" type="CollisionPolygon2D" parent="LeftCrystalTallCollision"]
-polygon = PackedVector2Array(-302, 550, -266, 455, -250, 548)
 
-[node name="LeftCrystalShortCollision" type="Area2D" parent="." groups=["Obstacle"]]
-collision_layer = 2
-collision_mask = 0
-[node name="Shape" type="CollisionPolygon2D" parent="LeftCrystalShortCollision"]
-polygon = PackedVector2Array(-285, 556, -225, 493, -248, 565)
+[node name="LeftCrystals" type="Sprite2D" parent="." groups=["Crystal", "TunnelCrystal"]]
+position = Vector2(-272, 514)
+rotation = 0.35
+z_index = -7
+material = SubResource("ShaderMaterial_crystal")
+scale = Vector2(0.18, 0.18)
+texture = SubResource("AtlasTexture_crystal")
 
-[node name="RightCrystalTallCollision" type="Area2D" parent="." groups=["Obstacle"]]
-collision_layer = 2
-collision_mask = 0
-[node name="Shape" type="CollisionPolygon2D" parent="RightCrystalTallCollision"]
-polygon = PackedVector2Array(302, 160, 270, 70, 251, 159)
+[node name="RightCrystals" type="Sprite2D" parent="." groups=["Crystal", "TunnelCrystal"]]
+position = Vector2(272, 124)
+rotation = -0.35
+z_index = -7
+material = SubResource("ShaderMaterial_crystal")
+scale = Vector2(0.18, 0.18)
+flip_h = true
+texture = SubResource("AtlasTexture_crystal")
 
-[node name="RightCrystalShortCollision" type="Area2D" parent="." groups=["Obstacle"]]
+[node name="LeftCrystalCollision" type="Area2D" parent="LeftCrystals" groups=["Obstacle"]]
 collision_layer = 2
 collision_mask = 0
-[node name="Shape" type="CollisionPolygon2D" parent="RightCrystalShortCollision"]
-polygon = PackedVector2Array(284, 167, 225, 103, 248, 176)
+[node name="Shape" type="CollisionPolygon2D" parent="LeftCrystals/LeftCrystalCollision"]
+polygon = PackedVector2Array(-285, 245, -285, 0, -165, -150, -105, -65, 45, -315, 160, -195, 160, -70, 300, -120, 305, 260)
+
+[node name="RightCrystalCollision" type="Area2D" parent="RightCrystals" groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+[node name="Shape" type="CollisionPolygon2D" parent="RightCrystals/RightCrystalCollision"]
+polygon = PackedVector2Array(285, 245, 285, 0, 165, -150, 105, -65, -45, -315, -160, -195, -160, -70, -300, -120, -305, 260)
+
+[node name="CrystalBackgroundLeft" type="Sprite2D" parent="." groups=["CrystalBackground", "TunnelCrystal"]]
+z_index = -7
+position = Vector2(-212, 255)
+rotation = 0.6
+scale = Vector2(0.14, 0.14)
+modulate = Color(0.42, 0.43, 0.47, 0.58)
+material = SubResource("ShaderMaterial_crystal")
+texture = SubResource("AtlasTexture_crystal")
+
+[node name="CrystalBackgroundRight" type="Sprite2D" parent="." groups=["CrystalBackground", "TunnelCrystal"]]
+z_index = -7
+position = Vector2(195, 607)
+rotation = -0.55
+scale = Vector2(0.15, 0.15)
+modulate = Color(0.38, 0.43, 0.44, 0.55)
+material = SubResource("ShaderMaterial_crystal")
+texture = SubResource("AtlasTexture_crystal")
+
+[node name="CrystalMiddle" type="Sprite2D" parent="." groups=["CrystalMiddle", "TunnelCrystal"]]
+z_index = -7
+position = Vector2(-220, 78)
+rotation = 0.8
+scale = Vector2(0.16, 0.16)
+modulate = Color(0.57, 0.60, 0.63, 0.78)
+material = SubResource("ShaderMaterial_crystal")
+texture = SubResource("AtlasTexture_crystal")
+
+[node name="CrystalCollision" type="Area2D" parent="CrystalBackgroundLeft" groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+[node name="Shape" type="CollisionPolygon2D" parent="CrystalBackgroundLeft/CrystalCollision"]
+polygon = PackedVector2Array(-285, 245, -285, 0, -165, -150, -105, -65, 45, -315, 160, -195, 160, -70, 300, -120, 305, 260)
+
+[node name="CrystalCollision" type="Area2D" parent="CrystalBackgroundRight" groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+[node name="Shape" type="CollisionPolygon2D" parent="CrystalBackgroundRight/CrystalCollision"]
+polygon = PackedVector2Array(-285, 245, -285, 0, -165, -150, -105, -65, 45, -315, 160, -195, 160, -70, 300, -120, 305, 260)
+
+[node name="CrystalCollision" type="Area2D" parent="CrystalMiddle" groups=["Obstacle"]]
+collision_layer = 2
+collision_mask = 0
+[node name="Shape" type="CollisionPolygon2D" parent="CrystalMiddle/CrystalCollision"]
+polygon = PackedVector2Array(-285, 245, -285, 0, -165, -150, -105, -65, 45, -315, 160, -195, 160, -70, 300, -120, 305, 260)

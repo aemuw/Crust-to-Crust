@@ -11,13 +11,17 @@ config_version=5
 [application]
 
 config/name="Crust-to-Crust"
-run/main_scene="uid://dyel3ycgc2m0t"
+run/main_scene="res://Scenes/Main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="res://Textures/Generated/hero_cube_v2.png"
 
 [display]
 
-window/size/mode=2
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/size/mode=0
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
@@ -41,5 +45,7 @@ Obstacle=""
 3d/physics_engine="Jolt Physics"
 
 [rendering]
+
+environment/defaults/default_clear_color=Color(0.025, 0.04, 0.06, 1)
 
 rendering_device/driver.windows="d3d12"
