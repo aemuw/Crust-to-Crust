@@ -21,7 +21,6 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/size/window_width_override=1280
 window/size/window_height_override=720
-window/size/mode=0
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
@@ -46,6 +45,5 @@ Obstacle=""
 
 [rendering]
 
-environment/defaults/default_clear_color=Color(0.025, 0.04, 0.06, 1)
-
 rendering_device/driver.windows="d3d12"
+environment/defaults/default_clear_color=Color(0.025, 0.04, 0.06, 1)
