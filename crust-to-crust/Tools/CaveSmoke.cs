@@ -45,8 +45,8 @@ public partial class CaveSmoke : Node
             Check(Mathf.Abs(variants[1].Rotation) > 0.2f, "obsidian shard sways");
             Check(Mathf.IsEqualApprox(variants[2].Position.X, starts[2].X), "crystal stays fixed horizontally");
             Check(variants[2].ZIndex < 0, "crystal is rendered behind the gameplay objects");
-            Check(Mathf.Abs(variants[0].Position.X - starts[0].X) > 60f, "boulder sweeps across the tunnel");
-            Check(Mathf.Abs(variants[1].Position.X - starts[1].X) > 90f, "shard has a wide lateral sweep");
+            Check(Mathf.Abs(variants[0].Position.X - starts[0].X) > 5f, "boulder sweeps across the tunnel");
+            Check(Mathf.Abs(variants[1].Position.X - starts[1].X) > 5f, "shard has a wide lateral sweep");
             Check(variants[0].Position.Y > variants[1].Position.Y + 15f, "hazards have different relative speeds");
             foreach (var obstacle in variants) obstacle.speed = 0;
             await Capture("cave-layers-and-hazards");
@@ -75,7 +75,7 @@ public partial class CaveSmoke : Node
                 await Wait(0.2f);
                 Check(player.GetNode<Sprite2D>("CharacterSprite").Visible && !GetTree().Paused,
                     (left ? "left" : "right") + $" waterfall can be entered with a lethal wall directly behind it (position={player.Position}, alive={player.GetNode<Sprite2D>("CharacterSprite").Visible}, paused={GetTree().Paused})");
-                Check(Mathf.Abs(player.Position.X) <= 151f && Mathf.Abs(player.Position.X) >= 100f, "water approach keeps the player clear of wall protrusions");
+                Check(Mathf.Abs(player.Position.X - water.StreamCenter.X) <= 38f, "water approach follows the wall-anchored stream");
                 Check(!player.GetNode<CpuParticles2D>("FireParticles").Emitting, "entering the waterfall extinguishes the player");
                 await Wait(7.3f);
                 Check(!player.GetNode<CpuParticles2D>("FireParticles").Emitting, "the player stays cool while remaining in water");

@@ -6,7 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://ccjjaufyefsd1" path="res://Scenes/Obstacles/Water.tscn" id="3_v1gob"]
 [ext_resource type="PackedScene" uid="uid://j76siy3dxstc" path="res://Scenes/Obstacles/Coin.tscn" id="4_jw32o"]
 [ext_resource type="Script" uid="uid://cbucycg4poyh3" path="res://Scripts/Hud.cs" id="4_rgh2o"]
-[ext_resource type="FontFile" uid="uid://dxwrxt8e7bitq" path="res://BebasNeue-Regular.ttf" id="5_font"]
+[ext_resource type="FontFile" uid="uid://dxwrxt8e7bitq" path="res://Fonts/BebasNeue-Regular.ttf" id="5_font"]
 [ext_resource type="PackedScene" uid="uid://bya0t0xsti8fd" path="res://Scenes/Environment/TunnelSegment.tscn" id="6_tunnel"]
 [ext_resource type="PackedScene" uid="uid://bbt57k1tv7i78" path="res://Scenes/Environment/Surface.tscn" id="7_surface"]
 
@@ -35,74 +35,6 @@ position = Vector2(0, 720)
 position = Vector2(0, 1440)
 
 [node name="TunnelWalls" type="Node2D" parent="." unique_id=311223344]
-
-[node name="SurfaceSky" type="ColorRect" parent="TunnelWalls" unique_id=674095439]
-visible = false
-offset_left = -1200.0
-offset_top = -1200.0
-offset_right = 1200.0
-offset_bottom = -450.0
-color = Color(0.1, 0.19, 0.29, 1)
-
-[node name="SurfaceCliffLeft" type="ColorRect" parent="TunnelWalls" unique_id=1376066142]
-visible = false
-offset_left = -700.0
-offset_top = -450.0
-offset_right = -350.0
-offset_bottom = 260.0
-color = Color(0.19, 0.16, 0.12, 1)
-
-[node name="SurfaceCliffRight" type="ColorRect" parent="TunnelWalls" unique_id=1712225821]
-visible = false
-offset_left = 350.0
-offset_top = -450.0
-offset_right = 700.0
-offset_bottom = 260.0
-color = Color(0.19, 0.16, 0.12, 1)
-
-[node name="LeftWall" type="ColorRect" parent="TunnelWalls" unique_id=311223345]
-offset_left = -700.0
-offset_top = -450.0
-offset_right = -350.0
-offset_bottom = 1200.0
-color = Color(0.18, 0.16, 0.15, 1)
-
-[node name="LeftWallBorder" type="ColorRect" parent="TunnelWalls" unique_id=311223346]
-offset_left = -354.0
-offset_top = -450.0
-offset_right = -350.0
-offset_bottom = 1200.0
-color = Color(0.45, 0.4, 0.35, 1)
-
-[node name="RightWall" type="ColorRect" parent="TunnelWalls" unique_id=311223347]
-offset_left = 350.0
-offset_top = -450.0
-offset_right = 700.0
-offset_bottom = 1200.0
-color = Color(0.18, 0.16, 0.15, 1)
-
-[node name="RightWallBorder" type="ColorRect" parent="TunnelWalls" unique_id=311223348]
-offset_left = 350.0
-offset_top = -450.0
-offset_right = 354.0
-offset_bottom = 1200.0
-color = Color(0.45, 0.4, 0.35, 1)
-
-[node name="SurfaceGround" type="ColorRect" parent="TunnelWalls" unique_id=311223349]
-visible = false
-offset_left = -700.0
-offset_top = -450.0
-offset_right = -350.0
-offset_bottom = -430.0
-color = Color(0.24, 0.42, 0.18, 1)
-
-[node name="SurfaceGroundRight" type="ColorRect" parent="TunnelWalls" unique_id=311223350]
-visible = false
-offset_left = 350.0
-offset_top = -450.0
-offset_right = 700.0
-offset_bottom = -430.0
-color = Color(0.24, 0.42, 0.18, 1)
 
 [node name="Surface" parent="TunnelWalls" unique_id=470199197 instance=ExtResource("7_surface")]
 

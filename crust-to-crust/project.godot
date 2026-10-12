@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Crust-to-Crust"
 run/main_scene="res://Scenes/Main.tscn"
-config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 config/icon="res://Textures/Generated/hero_cube_v2.png"
 
 [display]
@@ -39,11 +39,8 @@ Obstacle=""
 2d_physics/layer_3="Water"
 2d_physics/layer_4="Coin"
 
-[physics]
-
-3d/physics_engine="Jolt Physics"
-
 [rendering]
 
-rendering_device/driver.windows="d3d12"
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
 environment/defaults/default_clear_color=Color(0.025, 0.04, 0.06, 1)

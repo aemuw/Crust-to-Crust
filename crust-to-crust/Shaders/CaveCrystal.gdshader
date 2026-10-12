@@ -1,9 +1,12 @@
 shader_type canvas_item;
-uniform float saturation : hint_range(0.0, 1.0) = 0.32;
-uniform float brightness : hint_range(0.0, 1.0) = 0.70;
+render_mode unshaded;
+uniform float warmth : hint_range(0.0, 1.0) = 0.0;
+uniform float clock = 0.0;
 void fragment() {
-    vec4 crystal = COLOR;
-    float luminance = dot(crystal.rgb, vec3(0.299, 0.587, 0.114));
-    vec3 muted = mix(vec3(luminance), crystal.rgb, saturation) * brightness;
-    COLOR = vec4(muted, crystal.a);
+    vec4 crystal = texture(TEXTURE, UV);
+    float vein = smoothstep(0.025, 0.22, crystal.b - crystal.r);
+    vec3 amber = vec3(max(crystal.r,crystal.b)*1.14, crystal.g*0.60, crystal.r*0.32);
+    vec3 art = mix(crystal.rgb, amber, warmth * vein);
+    float pulse = 1.0 + 0.035 * sin(clock * 1.7);
+    COLOR = vec4(art * pulse, crystal.a);
 }

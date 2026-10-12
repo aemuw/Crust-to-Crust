@@ -44,7 +44,7 @@ public partial class ProgressionSmoke : Node
             foreach (Node node in GetTree().GetNodesInGroup("TunnelCrystal"))
             {
                 var crystal = (Sprite2D)node;
-                Check(crystal.ZIndex < 0 && crystal.Scale.X >= 0.14f, "large crystal is placed on the background layer");
+                Check(crystal.ZIndex < 0 && crystal.Scale.X * crystal.Texture.GetWidth() >= 80f, "large crystal is placed on the background layer");
                 Check(crystal.GetChildCount() > 0 && crystal.GetChild(0) is Area2D, "background crystal has an obstacle collider");
             }
             float initialInterval = level.CurrentObstacleInterval;

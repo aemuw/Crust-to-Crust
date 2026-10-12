@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://bya0t0xsti8fd"]
 
-[ext_resource type="Texture2D" uid="uid://dkkbdpc2lcnec" path="res://Textures/Generated/rock_wall_large.png" id="1_rock"]
+[ext_resource type="Texture2D" path="res://Textures/Generated/cave_basalt_painted.png" id="1_rock"]
 
-[ext_resource type="Texture2D" path="res://Textures/Generated/hazards_atlas.png" id="2_hazards"]
+[ext_resource type="Texture2D" path="res://Textures/Generated/crystal_cyan_painted.png" id="2_hazards"]
 
 [ext_resource type="Shader" path="res://Shaders/CaveCrystal.gdshader" id="3_crystal_style"]
 
@@ -11,7 +11,7 @@ shader = ExtResource("3_crystal_style")
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_crystal"]
 atlas = ExtResource("2_hazards")
-region = Rect2(1448, 0, 724, 724)
+region = Rect2(0, 0, 627, 627)
 
 [node name="TunnelSegment" type="Node2D" unique_id=1520080434 groups=["TunnelSegment"]]
 

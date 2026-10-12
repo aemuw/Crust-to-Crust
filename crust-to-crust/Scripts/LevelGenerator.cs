@@ -1,105 +1,214 @@
 using Godot;
 using System.Collections.Generic;
 
+/// <summary>
+/// Керує світом: прокрутка тунелю, пули перешкод/води/монет, біоми за глибиною та прогресія складності.
+/// </summary>
 public partial class LevelGenerator : Node2D
 {
 	[Export] private PackedScene obstacleScene;
 	[Export] private PackedScene waterScene;
-	[Export] private PackedScene coinScene; 
+	[Export] private PackedScene coinScene;
 
 	[Export] public int ObstaclePoolSize = 10;
 	[Export] public int WaterPoolSize = 5;
-	[Export] public int CoinPoolSize = 15;
+	[Export] public int CoinPoolSize = 24;
 
-	private List<Node2D> obstaclePool = new List<Node2D>();
-	private List<Node2D> waterPool = new List<Node2D>();
-	private List<Node2D> coinPool = new List<Node2D>();
-
-	private float obstacleTimer = 0f;
 	[Export] private float obstacleInterval = 2.6f;
 
-	private float waterTimer = 0f;
-	private float nextWaterInterval = 5f;
-	
-	private float coinTimer = 0f;
-	private float nextCoinInterval = 2f;
-
-	public float CurrentDepth = 0f;
-	[Export] public float FallSpeed = 340f; // Пришвидшено для динамічного відчуття польоту
-	
-	[Export] public float CoreDepthPoint = 20000f; // Відстань до ядра 20 000 метрів
-	[Export] public float TunnelLength = 40000f;
-	[Export] public float MinFallSpeed = 220f;
+	[Export] public float FallSpeed = 340f;
+	[Export] public float CoreDepthPoint = 20000f;   // відстань до ядра
+	[Export] public float TunnelLength = 40000f;     // повний шлях крізь планету
+	[Export] public float MinFallSpeed = 200f;
+    [Export] public float GravityStrength = 19f;
+    [Export] public float AirDrag = 0.000026f;
+    [Export] public float TerminalSpeed = 980f;
+    [Export] public int CrystalLightBudget = 6;
+    internal CanvasModulate CaveAmbient;
+    internal readonly List<ShaderMaterial> RockMaterials = new();
+    internal readonly List<ShaderMaterial> CrystalMaterials = new();
+    internal readonly List<PointLight2D> CrystalLights = new();
+    private float _biomeClock, _renderTicker;
+    internal readonly List<Node2D> RockMaterialOwners = new();
+    private readonly List<Water> _waters = new();
+    private readonly List<Water> _visibleWaters = new();
+    private readonly List<List<Area2D>> _crystalColliders = new();
+    private float[] _lightDistances = System.Array.Empty<float>();
+    private bool[] _selectedLights = System.Array.Empty<bool>();
+    private readonly List<Area2D> _hazardAreas = new();
+    private readonly List<(Area2D area, CanvasItem art, Node2D segment, bool left)> _wallBlocks = new();
+    private readonly Dictionary<Area2D,bool> _monitorStates = new();
+    private Camera2D _camera;
+    public Player Runner => _player;
+    public float SafeLaneAt(float y) => SafePassage.Center(CurrentDepth,y);
+    public float VisualWarmth { get; private set; }
+    public float FallAcceleration { get; private set; }
 	[Export] public float SurfaceHangDuration = 0.65f;
-	
-	private float _initialFallSpeed;
-	private bool _isHanging = false;
 
-	// Стіни тунелю для динамічної зміни кольору породи від глибини
-	private ColorRect _leftWall;
-	private ColorRect _rightWall;
-	private ColorRect _leftWallBorder;
-	private ColorRect _rightWallBorder;
-	private Player _player;
-	private Color _currentWallColor = new Color(0.18f, 0.16f, 0.15f);
-	private Color _currentBorderColor = new Color(0.42f, 0.38f, 0.33f);
-	private const float TunnelHalfWidth = 350f;
-	private float _tunnelVisualDepth = 0f;
-	private Texture2D _rockWallTexture;
-	private Node2D _tunnelSegmentsRoot;
-	private Node2D _surfaceRoot;
-	private readonly Dictionary<Node2D, Vector2> _initialTunnelSegmentPositions = new();
-	private bool _useEditableTunnelScenes = true;
+	// ── Баланс (можна крутити в інспекторі) ──
+	[Export] public float DifficultyRampSeconds = 120f; // за скільки секунд складність сягає максимуму
+	[Export] public float FirstWaterDelay = 10f;        // перша вода (кубик ще холодний)
+	[Export] public float ColdWaterMin = 9f;            // інтервал води у верхніх шарах
+	[Export] public float ColdWaterMax = 14f;
+	[Export] public float HotWaterMin = 4f;             // інтервал води біля ядра
+	[Export] public float HotWaterMax = 7f;
+	[Export(PropertyHint.Range, "0,1,0.01")] public float ShieldChance = 0.14f; // шанс, що «монета» виявиться щитом
+	[Export] public float ShieldCooldown = 25f;         // мінімум секунд між щитами
+
+	private const float HotZoneRadius = 5000f;
 	private const float TunnelTemplateHeight = 720f;
-	// Точні внутрішні краї шести видимих секцій стіни з TunnelSegment.tscn.
-	// Точки розташовані через 120 px і з'єднуються прямими ребрами.
+	private const float WallColorUpdateInterval = 0.1f;
+
+	// Точні внутрішні краї шести видимих секцій стіни з TunnelSegment.tscn (крок 120 px).
 	private static readonly float[] LeftTunnelEdges = { -320f, -290f, -265f, -280f, -275f, -295f, -320f };
 	private static readonly float[] RightTunnelEdges = { 320f, 292f, 285f, 275f, 270f, 285f, 320f };
 
-	public bool IsGameActive = false;
-	public float ActivePlaySeconds { get; private set; }
-	public float Difficulty => Mathf.Clamp(ActivePlaySeconds / 180f, 0f, 1f);
-	public float CurrentObstacleInterval => Mathf.Lerp(obstacleInterval, 1.25f, Difficulty);
-	private bool _tunnelHazardsVisible;
+	private readonly List<Node2D> obstaclePool = new();
+	private readonly List<Node2D> waterPool = new();
+	private readonly List<Node2D> coinPool = new();
 
+	private float obstacleTimer;
+    private float _nextObstacleDelay;
+	private float waterTimer;
+	private float nextWaterInterval;
+	private float coinTimer;
+	private float nextCoinInterval;
+	private float _shieldCooldownTimer;
+    private float _bonusCooldownTimer;
+	private float _wallColorTimer;
+
+	private float _initialFallSpeed;
+	private bool _isHanging;
+	private bool _tunnelHazardsVisible;
+	private float _tunnelVisualDepth;
+
+	private Player _player;
+	private Node2D _tunnelSegmentsRoot;
+	private Node2D _surfaceRoot;
+	private AudioManager _audio;
+	private readonly List<Node2D> _segments = new();
+	private readonly Dictionary<Node2D, Vector2> _initialTunnelSegmentPositions = new();
+	private readonly List<CanvasItem> _rockForeground = new();
+	private readonly List<CanvasItem> _rockBackground = new();
+	private readonly List<CanvasItem> _crystals = new();
+	private readonly List<Sprite2D> _tunnelCrystals = new();
+
+	private Color _currentWallColor = new Color(0.18f, 0.16f, 0.15f);
+	private Color _currentBorderColor = new Color(0.42f, 0.38f, 0.33f);
+
+	public float CurrentDepth;
+	public bool IsGameActive;
+	public float ActivePlaySeconds { get; private set; }
+	/// <summary>Номер поточного кола (після вильоту з іншого боку планети починається нове).</summary>
+	public int Lap { get; private set; } = 1;
+	/// <summary>Сумарна пройдена відстань з усіх кіл.</summary>
+	public float TotalDistance => (Lap - 1) * TunnelLength + CurrentDepth;
+	public float Difficulty => Mathf.Clamp(ActivePlaySeconds / DifficultyRampSeconds, 0f, 1f);
+	public float CurrentObstacleInterval => Mathf.Lerp(obstacleInterval, 1.25f, Difficulty);
+
+    public override void _ExitTree() { SaveData.Save(); }
+
+	// ───────────────────────────── Ініціалізація ─────────────────────────────
 
 	public override void _Ready()
 	{
-		_initialFallSpeed = FallSpeed;
-		nextWaterInterval = 14f; // На старті вода рідкісна, оскільки кубик ще холодний
-		nextCoinInterval = (float)GD.RandRange(1.5, 3.0); 
-		
-		_leftWall = GetNodeOrNull<ColorRect>("TunnelWalls/LeftWall");
-		_rightWall = GetNodeOrNull<ColorRect>("TunnelWalls/RightWall");
-		_leftWallBorder = GetNodeOrNull<ColorRect>("TunnelWalls/LeftWallBorder");
-		_rightWallBorder = GetNodeOrNull<ColorRect>("TunnelWalls/RightWallBorder");
+		GameAssets.Load();
+        SaveData.Load();
+        if (SaveData.EconomyLighting) CrystalLightBudget = 3;
+        _camera = GetNodeOrNull<Camera2D>("Camera2D");
+        _initialFallSpeed = FallSpeed;
+		nextWaterInterval = FirstWaterDelay; // на старті вода рідкісна: кубик ще холодний
+		nextCoinInterval = (float)GD.RandRange(1.5, 3.0);
+
 		_player = GetNodeOrNull<Player>("Player");
-		_rockWallTexture = GD.Load<Texture2D>("res://Textures/Generated/rock_wall_large.png");
 		_tunnelSegmentsRoot = GetNodeOrNull<Node2D>("TunnelSegments");
 		_surfaceRoot = GetNodeOrNull<Node2D>("TunnelWalls/Surface");
-		RememberInitialTunnelSegmentPositions();
-		TextureRepeat = TextureRepeatEnum.Enabled;
+		CacheTunnelNodes();
+        CacheCollisionNodes();
+        CaveLighting.Setup(this);
+        _lightDistances = new float[CrystalLights.Count];
+        _selectedLights = new bool[CrystalLights.Count];
 
-		// Старі прямі прямокутники замінюються процедурно намальованими стінами.
-		if (_leftWall != null) _leftWall.Visible = false;
-		if (_rightWall != null) _rightWall.Visible = false;
-		if (_leftWallBorder != null) _leftWallBorder.Visible = false;
-		if (_rightWallBorder != null) _rightWallBorder.Visible = false;
-		QueueRedraw();
+		_audio = new AudioManager { Name = "AudioManager" };
+		AddChild(_audio);
 
 		var hud = GetNodeOrNull<Hud>("HUD");
 		if (hud != null)
-		{
 			hud.StartRequested += StartGame;
-		}
 
 		InitializePool(obstacleScene, ObstaclePoolSize, obstaclePool);
 		InitializePool(waterScene, WaterPoolSize, waterPool);
 		InitializePool(coinScene, CoinPoolSize, coinPool);
-		// Виставляємо стартовий біом до першого кадру гри, щоб колір не стрибав на Start.
+
+		// Стартовий біом виставляємо до першого кадру, щоб колір не стрибав після Start.
 		UpdateWallColors();
 		SetTunnelHazardsVisible(false);
+        WarmShaders();
 	}
+
+    private async void WarmShaders()
+    {
+        // Actual tiny draws behind the opaque menu prepare pipelines before a run.
+        // Invisible/off-screen nodes would not warm a first-use shader.
+        var warmup = new Node2D { Name = "ShaderWarmup",Position = _camera?.Position ?? Vector2.Zero };
+        AddChild(warmup);
+        ShaderMaterial[] materials = { GameAssets.WaterMaterial,GameAssets.RuneStyles[0],CrystalMaterials[0],
+            new ShaderMaterial { Shader = GD.Load<Shader>("res://Shaders/Burning.gdshader") } };
+        for (int i = 0; i < materials.Length; i++)
+            warmup.AddChild(new Sprite2D { Texture = GameAssets.Crystal,Material = materials[i],
+                Position = new Vector2(i*2f,0),Scale = Vector2.One/GameAssets.Crystal.GetWidth() });
+        await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        if (GodotObject.IsInstanceValid(warmup)) warmup.QueueFree();
+    }
+
+	/// <summary>Кешуємо вузли тунелю один раз, щоб не шукати групи щокадру.</summary>
+	private void CacheTunnelNodes()
+	{
+		_segments.Clear();
+		_initialTunnelSegmentPositions.Clear();
+		if (_tunnelSegmentsRoot != null)
+		{
+			foreach (Node child in _tunnelSegmentsRoot.GetChildren())
+			{
+				if (child is not Node2D segment) continue;
+				_segments.Add(segment);
+				_initialTunnelSegmentPositions[segment] = segment.Position;
+			}
+		}
+
+		CacheGroup("RockForeground", _rockForeground);
+		CacheGroup("RockBackground", _rockBackground);
+		CacheGroup("Crystal", _crystals);
+		_tunnelCrystals.Clear();
+		foreach (Node node in GetTree().GetNodesInGroup("TunnelCrystal"))
+			if (node is Sprite2D crystal) _tunnelCrystals.Add(crystal);
+	}
+
+	private void CacheGroup(string group, List<CanvasItem> target)
+	{
+		target.Clear();
+		foreach (Node node in GetTree().GetNodesInGroup(group))
+			if (node is CanvasItem item) target.Add(item);
+	}
+
+	private void InitializePool(PackedScene scene, int size, List<Node2D> pool)
+	{
+		if (scene == null) return;
+
+		for (int i = 0; i < size; i++)
+		{
+			Node2D obj = (Node2D)scene.Instantiate();
+			obj.Visible = false;
+			if (obj is Area2D pooledArea) pooledArea.Monitorable = false;
+			obj.ProcessMode = ProcessModeEnum.Disabled;
+			AddChild(obj);
+			pool.Add(obj);
+            if (obj is Water water) RegisterWater(water);
+		}
+	}
+
+	// ───────────────────────────── Керування станом гри ─────────────────────────────
 
 	public void StartGame()
 	{
@@ -110,257 +219,11 @@ public partial class LevelGenerator : Node2D
 
 	public void BeginFalling()
 	{
-		// Після входу кубика в шахту поверхневі обриви більше не повинні
-		// накладатися на готові секції підземного тунелю.
+		// Після входу кубика в шахту поверхневі обриви не повинні накладатися на секції тунелю.
 		if (_surfaceRoot != null)
 			_surfaceRoot.Visible = false;
 		IsGameActive = true;
 		SetTunnelHazardsVisible(true);
-	}
-
-	private void InitializePool(PackedScene scene, int size, List<Node2D> pool)
-	{
-		if (scene == null) 
-			return;
-
-		for (int i = 0; i < size; i++)
-		{
-			Node2D obj = (Node2D)scene.Instantiate();
-			obj.Visible = false;
-			if (obj is Area2D pooledArea) pooledArea.Monitorable = false;
-			obj.ProcessMode = ProcessModeEnum.Disabled;
-			AddChild(obj);
-			pool.Add(obj);
-		}
-	}
-
-	public override void _PhysicsProcess(double delta)
-	{
-		if (_tunnelHazardsVisible) UpdateCrystalWaterClearance();
-	}
-
-	public override void _Process(double delta)
-	{
-		if (!IsGameActive) return;
-
-		if (_isHanging)
-		{
-			// Під час польоту через інший бік планети активні об'єкти відключені
-			return;
-		}
-
-		ActivePlaySeconds += (float)delta;
-		CurrentDepth += FallSpeed * (float)delta;
-		_tunnelVisualDepth = CurrentDepth;
-		ScrollEditableTunnelSegments((float)delta);
-
-		if (CurrentDepth < CoreDepthPoint)
-		{
-			// Динамічне прискорення при падінні у бік ядра
-			FallSpeed = Mathf.Min(Mathf.Lerp(490f, 570f, Difficulty), FallSpeed + 4f * (float)delta);
-		}
-		else if (CurrentDepth < TunnelLength)
-		{
-			// Гравітація сповільнює кубик після прольоту ядра до поверхні іншого боку
-			FallSpeed -= 4f * (float)delta;
-			if (FallSpeed < MinFallSpeed)
-				FallSpeed = MinFallSpeed;
-		}
-		else
-		{
-			// Повний виліт з іншого кінця планети (40 000м)
-			SetTunnelHazardsVisible(false);
-			_isHanging = true;
-			IsGameActive = false;
-			FallSpeed = 0f;
-
-			// Ховаємо активні перешкоди під час переходу на інший бік планети
-			DeactivateAllPoolObjects(obstaclePool);
-			DeactivateAllPoolObjects(waterPool);
-			DeactivateAllPoolObjects(coinPool);
-
-			// На час вильоту та повернення знову показуємо поверхню планети.
-			if (_surfaceRoot != null)
-				{ _surfaceRoot.Visible = true; _surfaceRoot.Rotation = Mathf.Pi; }
-
-			if (_player != null)
-			{
-				// Запуск кінематографічної анімації вильоту в небо, розвороту у невагомості і початку нового падіння
-				_player.PlayEmergenceAnimation(() =>
-				{
-					BeginFalling();
-				});
-			}
-			else
-			{
-				ResetForNextTunnelCycle();
-				BeginFalling();
-			}
-			return;
-		}
-		
-		// Оновлюємо швидкість усіх активних об'єктів під поточну швидкість падіння
-		UpdateActiveObjectsSpeed(obstaclePool);
-		UpdateActiveObjectsSpeed(waterPool);
-		UpdateActiveObjectsSpeed(coinPool);
-
-		UpdateWallColors();
-
-		obstacleTimer += (float)delta;
-		if (obstacleTimer >= CurrentObstacleInterval)
-		{
-			obstacleTimer = 0f;
-			SpawnFromPool(obstacleScene, obstaclePool);		
-		}
-
-		// Спавн води: на початку рідко (12-16с), а ближче до ядра (зона нагріву < 5000м) значно частіше (4-7с)
-		if (Mathf.Abs(CurrentDepth - CoreDepthPoint) < 5000f) nextWaterInterval = Mathf.Min(nextWaterInterval, 4f);
-		waterTimer += (float)delta;
-		if (waterTimer >= nextWaterInterval)
-		{
-			waterTimer = 0f;
-			float distToCore = Mathf.Abs(CurrentDepth - CoreDepthPoint);
-			if (distToCore < 5000f)
-			{
-				// Гаряча зона біля ядра: рятівна вода з'являється набагато частіше
-				nextWaterInterval = (float)GD.RandRange(4.0, 7.0);
-			}
-			else
-			{
-				// Верхні холодні пласти: вода спавниться рідко
-				nextWaterInterval = (float)GD.RandRange(12.0, 18.0);
-			}
-			SpawnFromPool(waterScene, waterPool);
-		}
-		
-		coinTimer += (float)delta;
-		if (coinTimer >= nextCoinInterval)
-		{
-			coinTimer = 0f;
-			nextCoinInterval = (float)GD.RandRange(1.5, 3.5);
-			SpawnFromPool(coinScene, coinPool);
-		}
-	}
-
-	private float SampleTunnelEdge(float worldY, float[] edgePoints)
-	{
-		float localY = Mathf.PosMod(worldY, TunnelTemplateHeight);
-		float scaled = localY / TunnelTemplateHeight * (edgePoints.Length - 1);
-		int index = Mathf.FloorToInt(scaled);
-		int next = Mathf.Min(index + 1, edgePoints.Length - 1);
-		float t = scaled - index;
-		return Mathf.Lerp(edgePoints[index], edgePoints[next], t);
-	}
-
-	public void GetTunnelBounds(float screenY, out float left, out float right)
-	{
-		// Окреме візуальне зміщення змінюється лише під час активної гри.
-		// Тому в головному меню рельєф гарантовано стоїть на місці.
-		float worldY = _tunnelVisualDepth + screenY;
-		left = SampleTunnelEdge(worldY, LeftTunnelEdges);
-		right = SampleTunnelEdge(worldY, RightTunnelEdges);
-		// Keep the player in the open stream instead of the lethal wall behind it.
-		foreach (Node node in GetTree().GetNodesInGroup("Water"))
-		{
-			if (node is not Water water || !water.IsVisibleInTree() || !water.Monitorable) continue;
-			if (Mathf.Abs(water.Position.Y - screenY) > Water.HalfHeight + 120f) continue;
-			if (water.FromLeft) left = Mathf.Max(left, -184f);
-			else right = Mathf.Min(right, 184f);
-		}
-	}
-
-	public override void _Draw()
-	{
-		// Основний тунель тепер зібраний вручну в TunnelSegment.tscn.
-		// Старий код залишено лише як резерв, але він не використовується.
-		if (_useEditableTunnelScenes) return;
-		const float top = -650f;
-		const float bottom = 1050f;
-		Color wallTint = GetRockTextureTint();
-
-		// Темна порода всередині тунелю рухається повільніше за передні стіни (parallax).
-		Vector2[] backdrop =
-		{
-			new Vector2(-1200f, top), new Vector2(1200f, top),
-			new Vector2(1200f, bottom), new Vector2(-1200f, bottom)
-		};
-		float parallaxY = _tunnelVisualDepth * 0.18f;
-		Vector2[] backdropUv =
-		{
-			new Vector2(0f, (top + parallaxY) * 0.12f), new Vector2(288f, (top + parallaxY) * 0.12f),
-			new Vector2(288f, (bottom + parallaxY) * 0.12f), new Vector2(0f, (bottom + parallaxY) * 0.12f)
-		};
-		Color backdropTint = new Color(wallTint.R * 0.30f, wallTint.G * 0.30f, wallTint.B * 0.30f);
-		DrawColoredPolygon(backdrop, backdropTint, backdropUv, _rockWallTexture);
-
-		// Малюємо готові секції цілком і лише зсуваємо їх по Y.
-		// Геометрія не перераховується по екранних зрізах, тому краї більше не дригаються.
-		float firstSectionY = -Mathf.PosMod(_tunnelVisualDepth, TunnelTemplateHeight) - TunnelTemplateHeight;
-		for (float sectionY = firstSectionY; sectionY < bottom + TunnelTemplateHeight; sectionY += TunnelTemplateHeight)
-		{
-			DrawTunnelTemplateSection(sectionY, wallTint);
-		}
-	}
-
-	private void ScrollEditableTunnelSegments(float delta)
-	{
-		if (_tunnelSegmentsRoot == null) return;
-		const float loopHeight = TunnelTemplateHeight * 5f;
-		foreach (Node child in _tunnelSegmentsRoot.GetChildren())
-		{
-			if (child is not Node2D segment) continue;
-			segment.Position += new Vector2(0f, -FallSpeed * delta);
-			if (segment.Position.Y < -TunnelTemplateHeight * 2f)
-				segment.Position += new Vector2(0f, loopHeight);
-		}
-	}
-
-	private void RememberInitialTunnelSegmentPositions()
-	{
-		_initialTunnelSegmentPositions.Clear();
-		if (_tunnelSegmentsRoot == null) return;
-
-		foreach (Node child in _tunnelSegmentsRoot.GetChildren())
-		{
-			if (child is Node2D segment)
-				_initialTunnelSegmentPositions[segment] = segment.Position;
-		}
-	}
-
-	public void SetTunnelHazardsVisible(bool visible)
-	{
-		_tunnelHazardsVisible = visible;
-		if (_tunnelSegmentsRoot == null) return;
-		foreach (Node2D segment in _tunnelSegmentsRoot.GetChildren())
-		{
-			segment.GetNodeOrNull<CanvasItem>("LeftBlockLarge")?.Set("visible", visible);
-			segment.GetNodeOrNull<CanvasItem>("RightBlockLarge")?.Set("visible", visible);
-			foreach (Node node in segment.FindChildren("*", "Area2D", true, false))
-				if (node is Area2D area && area.IsInGroup("Obstacle")) area.SetDeferred("monitorable", visible);
-		}
-		UpdateCrystalWaterClearance();
-	}
-
-	private void UpdateCrystalWaterClearance()
-	{
-		foreach (Node node in GetTree().GetNodesInGroup("TunnelCrystal"))
-		{
-			if (node is not Sprite2D crystal) continue;
-			bool clear = _tunnelHazardsVisible;
-			if (clear)
-			{
-				foreach (Node waterNode in GetTree().GetNodesInGroup("Water"))
-				{
-					if (waterNode is not Water water || !water.IsVisibleInTree() || !water.Monitorable) continue;
-					if (Mathf.Abs(crystal.GlobalPosition.Y - water.GlobalPosition.Y) < Water.HalfHeight + 170f &&
-						Mathf.Abs(crystal.GlobalPosition.X - water.StreamCenter.X) < 140f)
-					{ clear = false; break; }
-				}
-			}
-			crystal.Visible = clear;
-			foreach (Node child in crystal.GetChildren())
-				if (child is Area2D area) area.SetDeferred("monitorable", clear);
-		}
 	}
 
 	public void StopFalling()
@@ -382,12 +245,12 @@ public partial class LevelGenerator : Node2D
 		ResetForNextTunnelCycle();
 		FallSpeed = MinFallSpeed;
 		if (_surfaceRoot != null) _surfaceRoot.Rotation = 0f;
-		foreach (var entry in _initialTunnelSegmentPositions) entry.Key.Position = entry.Value;
 		if (_tunnelSegmentsRoot != null) _tunnelSegmentsRoot.Visible = true;
 	}
 
 	private void ResetForNextTunnelCycle()
 	{
+		Lap++;
 		CurrentDepth = 0f;
 		_tunnelVisualDepth = 0f;
 		FallSpeed = _initialFallSpeed;
@@ -395,7 +258,7 @@ public partial class LevelGenerator : Node2D
 		obstacleTimer = 0f;
 		waterTimer = 0f;
 		coinTimer = 0f;
-		nextWaterInterval = 12f;
+		nextWaterInterval = FirstWaterDelay;
 		nextCoinInterval = 2f;
 
 		foreach (KeyValuePair<Node2D, Vector2> entry in _initialTunnelSegmentPositions)
@@ -407,105 +270,309 @@ public partial class LevelGenerator : Node2D
 		UpdateWallColors();
 	}
 
-	private Color GetRockTextureTint()
-	{
-		return new Color(
-			Mathf.Clamp(0.66f + _currentWallColor.R * 1.45f, 0.76f, 1f),
-			Mathf.Clamp(0.52f + _currentWallColor.G * 1.25f, 0.54f, 0.82f),
-			Mathf.Clamp(0.48f + _currentWallColor.B * 1.15f, 0.50f, 0.76f));
-	}
+	// ───────────────────────────── Основний цикл ─────────────────────────────
 
-	private void DrawTunnelTemplateSection(float sectionY, Color textureTint)
+    public void RegisterWater(Water water) { if (!_waters.Contains(water)) _waters.Add(water); }
+    private void CacheCollisionNodes()
+    {
+        foreach (Node2D segment in _segments)
+        {
+            foreach (Node node in segment.FindChildren("*","Area2D",true,false))
+                if (node is Area2D area && area.IsInGroup("Obstacle")) _hazardAreas.Add(area);
+            for (int side = 0; side < 2; side++)
+            {
+                string prefix = side == 0 ? "Left" : "Right";
+                var area = segment.GetNode<Area2D>(prefix+"BlockCollision");
+                var art = segment.GetNode<CanvasItem>(prefix+"BlockLarge");
+                _wallBlocks.Add((area,art,segment,side == 0));
+            }
+        }
+        for (int i = 0; i < _tunnelCrystals.Count; i++)
+        {
+            _crystalColliders.Add(new List<Area2D>());
+            foreach (Node child in _tunnelCrystals[i].GetChildren())
+                if (child is Area2D area) _crystalColliders[i].Add(area);
+        }
+    }
+    private void Monitor(Area2D area, bool value)
+    {
+        if (_monitorStates.TryGetValue(area,out bool previous) && previous == value) return;
+        _monitorStates[area] = value;
+        area.SetDeferred("monitorable",value);
+    }
+    public override void _PhysicsProcess(double delta)
+    {
+        if (_tunnelHazardsVisible) UpdateCrystalWaterClearance();
+    }
+
+	public override void _Process(double delta)
 	{
-		int count = LeftTunnelEdges.Length;
-		Vector2[] leftInner = new Vector2[count];
-		Vector2[] rightInner = new Vector2[count];
-		for (int i = 0; i < count; i++)
+		SaveData.Tick((float)delta);
+        UpdateCaveAtmosphere((float)delta);
+        if (!IsGameActive) return;
+		if (_isHanging) return; // під час польоту через інший бік планети активні об'єкти відключені
+
+		float dt = (float)delta;
+		ActivePlaySeconds += dt;
+		CurrentDepth += FallSpeed * dt;
+		_tunnelVisualDepth = CurrentDepth;
+		ScrollEditableTunnelSegments(dt);
+
+        if (CurrentDepth >= TunnelLength)
+        {
+            BeginEmergence();
+            return;
+        }
+        // Arcade descent: positive acceleration through the core and the entire tunnel.
+        float proximity = Mathf.Clamp(1f-Mathf.Abs(CurrentDepth-CoreDepthPoint)/9000f,0f,1f);
+        float drive = Mathf.Max(0f,GravityStrength)*(0.70f+1.10f*proximity);
+        float resistance = 1f+Mathf.Max(0f,AirDrag)*FallSpeed*FallSpeed*0.12f;
+        FallAcceleration = drive/resistance;
+        float limit = Mathf.Max(FallSpeed,TerminalSpeed*Mathf.Lerp(1f,1.10f,Difficulty));
+        FallSpeed = Mathf.Min(limit,FallSpeed+FallAcceleration*dt);
+
+		UpdateActiveObjectsSpeed(obstaclePool);
+		UpdateActiveObjectsSpeed(waterPool);
+		UpdateActiveObjectsSpeed(coinPool);
+
+		_wallColorTimer -= dt;
+		if (_wallColorTimer <= 0f)
 		{
-			float y = sectionY + TunnelTemplateHeight * i / (count - 1);
-			leftInner[i] = new Vector2(LeftTunnelEdges[i], y);
-			rightInner[i] = new Vector2(RightTunnelEdges[i], y);
+			_wallColorTimer = WallColorUpdateInterval;
+			UpdateWallColors();
 		}
 
-		Vector2[] leftPolygon = new Vector2[count + 2];
-		leftPolygon[0] = new Vector2(-1200f, sectionY);
-		for (int i = 0; i < count; i++) leftPolygon[i + 1] = leftInner[i];
-		leftPolygon[count + 1] = new Vector2(-1200f, sectionY + TunnelTemplateHeight);
-
-		Vector2[] rightPolygon = new Vector2[count + 2];
-		for (int i = 0; i < count; i++) rightPolygon[i] = rightInner[i];
-		rightPolygon[count] = new Vector2(1200f, sectionY + TunnelTemplateHeight);
-		rightPolygon[count + 1] = new Vector2(1200f, sectionY);
-
-		Vector2[] leftUv = new Vector2[leftPolygon.Length];
-		Vector2[] rightUv = new Vector2[rightPolygon.Length];
-		for (int i = 0; i < leftPolygon.Length; i++) leftUv[i] = (leftPolygon[i] + new Vector2(1200f, _tunnelVisualDepth)) * 0.12f;
-		for (int i = 0; i < rightPolygon.Length; i++) rightUv[i] = (rightPolygon[i] + new Vector2(1200f, _tunnelVisualDepth)) * 0.12f;
-
-		DrawColoredPolygon(leftPolygon, textureTint, leftUv, _rockWallTexture);
-		DrawColoredPolygon(rightPolygon, textureTint, rightUv, _rockWallTexture);
-		DrawPolyline(leftInner, _currentBorderColor, 5f, true);
-		DrawPolyline(rightInner, _currentBorderColor, 5f, true);
-		DrawTemplateDecorations(sectionY, textureTint);
+		SpawnTimers(dt);
 	}
 
-	private void DrawTemplateDecorations(float sectionY, Color textureTint)
+	private void BeginEmergence()
 	{
-		// Великі кам'яні блоки є частиною самої заготовки й рухаються разом із нею.
-		Vector2[] leftBlock =
-		{
-			new Vector2(-318f, sectionY + 205f), new Vector2(-255f, sectionY + 218f),
-			new Vector2(-205f, sectionY + 278f), new Vector2(-231f, sectionY + 346f),
-			new Vector2(-305f, sectionY + 366f)
-		};
-		Vector2[] rightBlock =
-		{
-			new Vector2(315f, sectionY + 474f), new Vector2(248f, sectionY + 452f),
-			new Vector2(194f, sectionY + 505f), new Vector2(216f, sectionY + 573f),
-			new Vector2(304f, sectionY + 598f)
-		};
-		DrawFormation(leftBlock, textureTint);
-		DrawFormation(rightBlock, textureTint);
+		// Повний виліт з іншого кінця планети
+		SetTunnelHazardsVisible(false);
+		_isHanging = true;
+		IsGameActive = false;
+		FallSpeed = 0f;
 
-		// Дві контрастні кристалічні групи, також у фіксованих місцях шаблону.
-		Color crystal = _currentWallColor.R > 0.22f
-			? new Color(1f, 0.28f, 0.08f, 0.92f)
-			: new Color(0.38f, 0.70f, 0.82f, 0.88f);
-		DrawCrystalCluster(new Vector2(-300f, sectionY + 540f), 1f, crystal);
-		DrawCrystalCluster(new Vector2(300f, sectionY + 150f), -1f, crystal);
+		DeactivateAllPoolObjects(obstaclePool);
+		DeactivateAllPoolObjects(waterPool);
+		DeactivateAllPoolObjects(coinPool);
+
+		// На час вильоту та повернення знову показуємо поверхню планети.
+		if (_surfaceRoot != null)
+		{
+			_surfaceRoot.Visible = true;
+			_surfaceRoot.Rotation = Mathf.Pi;
+		}
+
+		if (_player != null)
+		{
+			_player.PlayEmergenceAnimation(BeginFalling);
+		}
+		else
+		{
+			ResetForNextTunnelCycle();
+			BeginFalling();
+		}
 	}
 
-	private void DrawCrystalCluster(Vector2 origin, float direction, Color color)
+	private void SpawnTimers(float dt)
 	{
-		DrawColoredPolygon(new[]
+		_shieldCooldownTimer = Mathf.Max(0f, _shieldCooldownTimer - dt);
+        _bonusCooldownTimer = Mathf.Max(0,_bonusCooldownTimer-dt);
+
+		obstacleTimer += dt;
+		if (obstacleTimer >= (_nextObstacleDelay > 0f ? _nextObstacleDelay : CurrentObstacleInterval))
 		{
-			origin, origin + new Vector2(55f * direction, -18f), origin + new Vector2(18f * direction, 10f)
-		}, color);
-		DrawColoredPolygon(new[]
+			obstacleTimer = 0f;
+            _nextObstacleDelay = CurrentObstacleInterval*(float)GD.RandRange(0.78,1.24);
+			SpawnFromPool(obstacleScene, obstaclePool);
+		}
+
+		// Вода: у холодних шарах рідко, біля ядра (зона нагріву) значно частіше.
+		float distToCore = Mathf.Abs(CurrentDepth - CoreDepthPoint);
+		bool hotZone = distToCore < HotZoneRadius;
+		if (hotZone) nextWaterInterval = Mathf.Min(nextWaterInterval, HotWaterMin);
+
+		waterTimer += dt;
+		if (waterTimer >= nextWaterInterval)
 		{
-			origin + new Vector2(4f * direction, 7f), origin + new Vector2(38f * direction, -58f), origin + new Vector2(26f * direction, 12f)
-		}, color.Lightened(0.12f));
-		DrawColoredPolygon(new[]
+			waterTimer = 0f;
+			nextWaterInterval = hotZone
+				? (float)GD.RandRange(HotWaterMin, HotWaterMax)
+				: (float)GD.RandRange(ColdWaterMin, ColdWaterMax);
+			SpawnFromPool(waterScene, waterPool);
+		}
+
+		coinTimer += dt;
+		if (coinTimer >= nextCoinInterval)
 		{
-			origin + new Vector2(20f * direction, 10f), origin + new Vector2(72f * direction, -30f), origin + new Vector2(43f * direction, 20f)
-		}, color.Darkened(0.12f));
+			coinTimer = 0f;
+			nextCoinInterval = (float)GD.RandRange(1.5, 3.5);
+
+			bool shield = _shieldCooldownTimer <= 0f
+				&& !(_player?.HasShield ?? false)
+				&& GD.Randf() < ShieldChance;
+			if (shield) _shieldCooldownTimer = ShieldCooldown;
+			PickupKind kind = shield ? PickupKind.Shield : PickupKind.Coin;
+            if (!shield && _bonusCooldownTimer <= 0f && GD.Randf() < 0.26f)
+            {
+                kind = GD.Randf()<0.55f ? PickupKind.DoubleCoins : PickupKind.Magnet;
+                _bonusCooldownTimer = 16f;
+            }
+            // Some coin chains mark the protected route; side coins remain optional risk.
+            float x = kind != PickupKind.Coin || GD.Randf()<0.50f
+                ? SafeLaneAt(1000f) : (float)GD.RandRange(-165,165);
+            SpawnFromPool(coinScene,coinPool,kind,new Vector2(x,1000));
+            if (kind == PickupKind.Coin && GD.Randf() < 0.38f)
+            {
+                SpawnFromPool(coinScene,coinPool,PickupKind.Coin,new Vector2(x+18,1100));
+                SpawnFromPool(coinScene,coinPool,PickupKind.Coin,new Vector2(x-18,1200));
+            }
+		}
 	}
 
-	private void DrawFormation(Vector2[] points, Color tint)
+	// ───────────────────────────── Тунель ─────────────────────────────
+
+	private float SampleTunnelEdge(float worldY, float[] edgePoints)
 	{
-		Vector2[] uv = new Vector2[points.Length];
-		for (int i = 0; i < points.Length; i++) uv[i] = (points[i] + new Vector2(1200f, _tunnelVisualDepth)) * 0.12f;
-		DrawColoredPolygon(points, tint, uv, _rockWallTexture);
-		DrawPolyline(points, _currentBorderColor, 4f, true);
+		float localY = Mathf.PosMod(worldY, TunnelTemplateHeight);
+		float scaled = localY / TunnelTemplateHeight * (edgePoints.Length - 1);
+		int index = Mathf.FloorToInt(scaled);
+		int next = Mathf.Min(index + 1, edgePoints.Length - 1);
+		return Mathf.Lerp(edgePoints[index], edgePoints[next], scaled - index);
 	}
+
+    public void GetRockBounds(float screenY, out float left, out float right)
+    {
+        float worldY = _tunnelVisualDepth + screenY;
+        left = SampleTunnelEdge(worldY, LeftTunnelEdges);
+        right = SampleTunnelEdge(worldY, RightTunnelEdges);
+    }
+
+	public void GetTunnelBounds(float screenY, out float left, out float right)
+	{
+		// Візуальне зміщення змінюється лише під час гри, тож у меню рельєф стоїть на місці.
+		GetRockBounds(screenY, out left, out right);
+
+		// Поки кубик у водоспаді, тримаємо його в відкритому струмені, а не в смертельній стіні позаду.
+		foreach (Water water in _waters)
+		{
+			if (!GodotObject.IsInstanceValid(water) || !water.IsVisibleInTree() || !water.Monitorable) continue;
+			if (Mathf.Abs(water.Position.Y - screenY) > Water.HalfHeight + 120f) continue;
+			if (water.FromLeft) left = Mathf.Max(left, water.StreamCenter.X - 58f);
+            else right = Mathf.Min(right, water.StreamCenter.X + 58f);
+		}
+	}
+
+	private void ScrollEditableTunnelSegments(float delta)
+	{
+		const float loopHeight = TunnelTemplateHeight * 5f;
+		for (int i = 0; i < _segments.Count; i++)
+		{
+			Node2D segment = _segments[i];
+			segment.Position += new Vector2(0f, -FallSpeed * delta);
+			if (segment.Position.Y < -TunnelTemplateHeight * 2f)
+				segment.Position += new Vector2(0f, loopHeight);
+		}
+	}
+
+    public void SetTunnelHazardsVisible(bool visible)
+    {
+        _tunnelHazardsVisible = visible;
+        foreach (Area2D area in _hazardAreas) Monitor(area,visible);
+        UpdateCrystalWaterClearance();
+    }
+    private void UpdateCrystalWaterClearance()
+    {
+        _visibleWaters.Clear();
+        if (_tunnelHazardsVisible)
+            foreach (Water water in _waters)
+                if (GodotObject.IsInstanceValid(water) && water.Visible && water.Monitorable) _visibleWaters.Add(water);
+        foreach (var block in _wallBlocks)
+        {
+            bool covered = false;
+            float y = block.segment.GlobalPosition.Y+(block.left ? 285f : 525f);
+            foreach (Water water in _visibleWaters)
+                if (water.FromLeft == block.left && Mathf.Abs(y-water.GlobalPosition.Y) < Water.HalfHeight+150f)
+                { covered = true; break; }
+            bool clear = _tunnelHazardsVisible && !covered;
+            Monitor(block.area,clear);
+            if (block.art.Visible != clear) block.art.Visible = clear;
+        }
+        for (int i = 0; i < _tunnelCrystals.Count; i++)
+        {
+            Sprite2D crystal = _tunnelCrystals[i];
+            bool clear = _tunnelHazardsVisible;
+            foreach (Water water in _visibleWaters)
+                if (Mathf.Abs(crystal.GlobalPosition.Y-water.GlobalPosition.Y) < Water.HalfHeight+170f &&
+                    Mathf.Abs(crystal.GlobalPosition.X-water.StreamCenter.X) < 140f)
+                { clear = false; break; }
+            if (crystal.Visible != clear) crystal.Visible = clear;
+            foreach (Area2D area in _crystalColliders[i]) Monitor(area,clear);
+        }
+    }
+
+	// ───────────────────────────── Біоми ─────────────────────────────
+
+    private void UpdateCaveAtmosphere(float dt)
+    {
+        if (GetTree().Paused) return;
+        if (IsGameActive) _biomeClock += dt;
+        GameAssets.WaterMaterial.SetShaderParameter("clock",_biomeClock);
+        float approach = Mathf.Clamp(1f-Mathf.Abs(CurrentDepth-CoreDepthPoint)/9000f,0f,1f);
+        float target = approach*approach*(3f-2f*approach);
+        VisualWarmth = Mathf.Lerp(VisualWarmth,target,1f-Mathf.Exp(-dt*1.2f));
+        // One shared crystal shader, instead of 25 identical per-crystal updates.
+        foreach (ShaderMaterial material in CrystalMaterials)
+        { material.SetShaderParameter("warmth",VisualWarmth); material.SetShaderParameter("clock",_biomeClock); }
+        _renderTicker += dt;
+        if (_renderTicker < 0.05f) return;
+        _renderTicker = 0f;
+        float centerY = _camera?.GlobalPosition.Y ?? 0f;
+        for (int i = 0; i < RockMaterials.Count; i++)
+            if (Mathf.Abs(RockMaterialOwners[i].GlobalPosition.Y+360f-centerY)<1200f)
+                RockMaterials[i].SetShaderParameter("warmth",VisualWarmth);
+        Color lightColor = new Color("59dfe8").Lerp(new Color("ff8c39"),VisualWarmth);
+        for (int i = 0; i < CrystalLights.Count; i++)
+        {
+            var light = CrystalLights[i]; _selectedLights[i] = false;
+            float distance = Mathf.Abs(light.GlobalPosition.Y-centerY);
+            _lightDistances[i] = _tunnelHazardsVisible && light.IsVisibleInTree() && distance < 650f ? distance : float.PositiveInfinity;
+        }
+        for (int slot = 0; slot < Mathf.Clamp(CrystalLightBudget,0,8); slot++)
+        {
+            int nearest = -1; float best = float.PositiveInfinity;
+            for (int i = 0; i < CrystalLights.Count; i++)
+                if (_lightDistances[i] < best) { best = _lightDistances[i]; nearest = i; }
+            if (nearest < 0) break;
+            _selectedLights[nearest] = true;
+            _lightDistances[nearest] = float.PositiveInfinity;
+        }
+        for (int i = 0; i < CrystalLights.Count; i++)
+        {
+            var light = CrystalLights[i];
+            if (light.Enabled != _selectedLights[i]) light.Enabled = _selectedLights[i];
+            if (_selectedLights[i]) { light.Color = lightColor; light.Energy = Mathf.Lerp(0.92f,1.10f,VisualWarmth); }
+        }
+        if (CaveAmbient != null) CaveAmbient.Color = new Color(0.075f,0.095f,0.13f).Lerp(new Color(0.20f,0.055f,0.025f),VisualWarmth);
+    }
+    private void UpdateWallColors()
+    {
+        _currentWallColor = new Color(0.18f,0.16f,0.15f).Lerp(new Color(0.36f,0.07f,0.025f),VisualWarmth);
+        _currentBorderColor = new Color("526875").Lerp(new Color("ef6930"),VisualWarmth);
+        foreach (Node2D node in waterPool)
+            if (node.Visible && node is Water water) water.UpdateBiomeColors(_currentWallColor,_currentBorderColor);
+    }
+
+	// ───────────────────────────── Пули ─────────────────────────────
 
 	private void DeactivateAllPoolObjects(List<Node2D> pool)
 	{
-		for (int i = 0; i < pool.Count; i++)
+		foreach (Node2D obj in pool)
 		{
-			pool[i].Visible = false;
-			if (pool[i] is Area2D pooledArea) pooledArea.SetDeferred("monitorable", false);
-			pool[i].ProcessMode = ProcessModeEnum.Disabled;
+			obj.Visible = false;
+			if (obj is Area2D pooledArea) pooledArea.SetDeferred("monitorable", false);
+			obj.ProcessMode = ProcessModeEnum.Disabled;
 		}
 	}
 
@@ -513,174 +580,91 @@ public partial class LevelGenerator : Node2D
 	{
 		for (int i = 0; i < pool.Count; i++)
 		{
-			if (pool[i].Visible)
-			{
-				pool[i].Set("speed", FallSpeed);
-				if (pool[i] is Obstacle obstacle) obstacle.MotionDifficulty = Difficulty;
-			}
-		}
-	}
-
-	// Текстура/колір шарів землі змінюється з глибиною (поверхня -> камінь -> розпечена магма біля ядра)
-	private void UpdateWallColors()
-	{
-		if (_leftWall == null || _rightWall == null) return;
-
-		float progressToCore = Mathf.Clamp((CoreDepthPoint - Mathf.Abs(CurrentDepth - CoreDepthPoint)) / CoreDepthPoint, 0f, 1f);
-
-		Color wallColor;
-		Color borderColor;
-
-		if (progressToCore < 0.35f)
-		{
-			// 0 - 7000м: кам'янисто-земельні сіро-коричневі породи
-			float t = progressToCore / 0.35f;
-			wallColor = new Color(0.18f, 0.16f, 0.15f).Lerp(new Color(0.15f, 0.13f, 0.16f), t);
-			borderColor = new Color(0.42f, 0.38f, 0.33f).Lerp(new Color(0.35f, 0.30f, 0.35f), t);
-		}
-		else if (progressToCore < 0.75f)
-		{
-			// 7000 - 15000м: глибокий базальт, з'являються червонувато-темні відтінки
-			float t = (progressToCore - 0.35f) / 0.40f;
-			wallColor = new Color(0.15f, 0.13f, 0.16f).Lerp(new Color(0.24f, 0.08f, 0.06f), t);
-			borderColor = new Color(0.35f, 0.30f, 0.35f).Lerp(new Color(0.55f, 0.20f, 0.12f), t);
-		}
-		else
-		{
-			// 15000 - 20000м: ядро планети - розпечена магма, вулканічні стіни
-			float t = (progressToCore - 0.75f) / 0.25f;
-			wallColor = new Color(0.24f, 0.08f, 0.06f).Lerp(new Color(0.35f, 0.06f, 0.04f), t);
-			borderColor = new Color(0.55f, 0.20f, 0.12f).Lerp(new Color(0.95f, 0.45f, 0.10f), t);
-		}
-
-		_leftWall.Color = wallColor;
-		_rightWall.Color = wallColor;
-		if (_leftWallBorder != null) _leftWallBorder.Color = borderColor;
-		if (_rightWallBorder != null) _rightWallBorder.Color = borderColor;
-		_currentWallColor = wallColor;
-		_currentBorderColor = borderColor;
-		Color editableTint = GetRockTextureTint();
-		foreach (Node node in GetTree().GetNodesInGroup("RockForeground"))
-			if (node is CanvasItem item) item.Modulate = editableTint;
-		foreach (Node node in GetTree().GetNodesInGroup("RockBackground"))
-			if (node is CanvasItem item) item.Modulate = new Color(editableTint.R * 0.30f, editableTint.G * 0.30f, editableTint.B * 0.30f);
-		Color crystalTint = wallColor.R > 0.22f ? new Color(0.78f, 0.53f, 0.41f) : new Color(0.76f, 0.83f, 0.86f);
-		foreach (Node node in GetTree().GetNodesInGroup("Crystal"))
-			if (node is CanvasItem item) item.Modulate = crystalTint;
-		QueueRedraw();
-
-		// Синхронізуємо кольори активних водяних печер з шаром землі
-		for (int i = 0; i < waterPool.Count; i++)
-		{
-			if (waterPool[i].Visible && waterPool[i] is Water activeWater)
-			{
-				activeWater.UpdateBiomeColors(wallColor, borderColor);
-			}
+			if (!pool[i].Visible) continue;
+			if (pool[i] is Obstacle movingRock) movingRock.speed = FallSpeed;
+            else if (pool[i] is Water movingWater) movingWater.speed = FallSpeed;
+            else if (pool[i] is Coin movingCoin) movingCoin.speed = FallSpeed;
+			if (pool[i] is Obstacle obstacle) obstacle.MotionDifficulty = Difficulty;
 		}
 	}
 
 	private bool IsWaterInZone(float targetY, float halfHeight = 1500f)
 	{
-		for (int i = 0; i < waterPool.Count; i++)
+		foreach (Node2D water in waterPool)
 		{
-			if (waterPool[i].Visible)
-			{
-				float waterY = waterPool[i].Position.Y;
-				// Використовуємо фактичну висоту водоспаду з Water.cs.
-				if (Mathf.Abs(waterY - targetY) < (Water.HalfHeight + halfHeight))
-				{
-					return true;
-				}
-			}
+			if (water.Visible && Mathf.Abs(water.Position.Y - targetY) < (Water.HalfHeight + halfHeight))
+				return true;
 		}
 		return false;
 	}
 
-	private void SpawnFromPool(PackedScene scene, List<Node2D> pool)
+	private void SpawnFromPool(PackedScene scene, List<Node2D> pool, PickupKind pickupKind = PickupKind.Coin, Vector2? pickupPosition = null)
 	{
-		if (scene == null)
-			return;
+		if (scene == null) return;
 
 		// Не спавнимо камінці поверх короткого бокового водоспаду.
 		if (scene == obstacleScene && IsWaterInZone(1000f, 400f))
-		{
 			return;
-		}
 
 		Node2D obj = null;
-		for (int i = 0; i < pool.Count; i++)
+		foreach (Node2D candidate in pool)
 		{
-			if (!pool[i].Visible)
-			{
-				obj = pool[i];
-				break;
-			}
+			if (!candidate.Visible) { obj = candidate; break; }
 		}
-
-		if (obj == null)
-		{
-			obj = (Node2D)scene.Instantiate();
-			AddChild(obj);
-			pool.Add(obj);
-		}
+		if (obj == null) return; // Bounded pools: no mid-run node/resource allocation spikes.
 
 		Vector2 spawnPosition;
-
-		// Водоспад сам обирає ліву або праву стіну; кореневий вузол лишається по центру.
 		if (scene == waterScene)
 		{
-			// Короткий водоспад входить у кадр без довгого порожнього очікування.
+			// Водоспад сам обирає ліву або праву стіну; кореневий вузол лишається по центру.
 			spawnPosition = new Vector2(0f, 1450f);
 			obj.Scale = Vector2.One;
 			obj.Rotation = 0f;
 			if (obj is Water waterNode)
 			{
-				if (_leftWall != null && _leftWallBorder != null)
-				{
-					waterNode.UpdateBiomeColors(_leftWall.Color, _leftWallBorder.Color);
-				}
+				waterNode.UpdateBiomeColors(_currentWallColor, _currentBorderColor);
 				waterNode.GenerateRandomCaveGeometry();
 			}
 		}
 		else if (scene == obstacleScene)
 		{
-			// Камені плавно і вільно спавняться по всій ширині тунелю (-220f .. +220f)
-			float randomX = (float)GD.RandRange(-165.0, 165.0);
-			spawnPosition = new Vector2(randomX, 1000f);
-
-			// Камінці різних розмірів та випадкових поворотів
-			float scaleVariation = (float)GD.RandRange(0.75, 1.35);
+			// Камені спавняться по всій ширині тунелю
+			spawnPosition = new Vector2((float)GD.RandRange(-165.0, 165.0), 1000f);
+			float scaleVariation = (float)GD.RandRange(0.75,SafePassage.MaxSpawnScale);
 			Vector2 targetScale = new Vector2(scaleVariation, scaleVariation);
 			obj.Scale = targetScale;
 			obj.Rotation = (float)GD.RandRange(0, Mathf.Pi * 2);
 
 			if (obj is Obstacle obs)
 			{
-				obs.ConfigureVariant(GD.RandRange(0, 1));
+				obj.Position = spawnPosition;
+                int roll = GD.RandRange(0,99);
+                int variant = roll < 32 ? 0 : roll < 57 ? 1 : roll < 77 ? 3 : roll < 92 ? 4 : 5;
+                if (Difficulty < 0.12f && variant >= 4) variant = 0;
+                obs.ConfigureVariant(variant,_player?.Position.X ?? 0f);
+                int side = GD.Randf() < 0.5f ? -1 : 1;
+                if (!obs.ProtectPassage(side,scaleVariation)) return;
+                spawnPosition = obs.Position;
 				obs.MotionDifficulty = Difficulty;
 				obs.TriggerAppear(targetScale);
 			}
 		}
 		else
 		{
-			// Боковий водоспад не перекриває весь прохід, тому монети
-			// продовжують використовувати повну ігрову ширину.
-			float spawnWidth = 175f;
-			float randomX = (float)GD.RandRange(-spawnWidth, spawnWidth);
-			spawnPosition = new Vector2(randomX, 1000f);
+			// Монети та щити використовують повну ігрову ширину
+			spawnPosition = pickupPosition ?? new Vector2((float)GD.RandRange(-175.0,175.0),1000f);
 			obj.Scale = Vector2.One;
 			obj.Rotation = 0f;
-
 			if (obj is Coin coin)
-			{
-				coin.TriggerAppear();
-			}
+				coin.TriggerAppear(pickupKind);
 		}
 
 		obj.Position = spawnPosition;
 		obj.Visible = true;
 		if (obj is Area2D pooledArea) pooledArea.SetDeferred("monitorable", true);
 		obj.ProcessMode = ProcessModeEnum.Inherit;
-		obj.Set("speed", FallSpeed);
+		if (obj is Obstacle movingRock) movingRock.speed = FallSpeed;
+        else if (obj is Water movingWater) movingWater.speed = FallSpeed;
+        else if (obj is Coin movingCoin) movingCoin.speed = FallSpeed;
 	}
 }

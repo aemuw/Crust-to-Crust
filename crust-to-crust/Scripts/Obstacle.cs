@@ -1,81 +1,135 @@
 using Godot;
 
+/// <summary>Six cached variants; irregular motion, telegraphed dash, bounded lateral travel.</summary>
 public partial class Obstacle : Area2D
 {
-	[Export] public float speed = 500f;
-	
-	private Vector2 _targetScale = Vector2.One;
-	private float _appearTimer = 0f;
-	private const float AppearDuration = 0.35f;
-
+    [Export] public float speed = 500f;
     private Sprite2D _sprite;
-    private float _driftPhase;
-    private float _anchorX;
+    private CollisionShape2D _collision;
+    private Shape2D[] _shapes;
+    private LightOccluder2D _shadow;
+    private PointLight2D _glow;
+    private Label _warning;
+    private Vector2 _targetScale = Vector2.One;
+    private float _appearTimer, _phase, _anchorX, _frequency, _amplitude, _spin, _driftVelocity, _dashTarget;
     private int _variant;
+    private bool _dashStarted;
+    private LevelGenerator _level;
+    private int _safeSide;
+    private float _protectedRadius;
+    private const float AppearDuration = 0.35f;
     public float MotionDifficulty { get; set; }
-    public void ConfigureVariant(int variant)
+    public override void _Ready()
     {
-        _variant = variant;
-        _sprite ??= GetNode<Sprite2D>("RockSprite");
-        var atlas = GD.Load<Texture2D>("res://Textures/Generated/hazards_atlas.png");
-        float cell = atlas.GetWidth() / 3f;
-        _sprite.Texture = new AtlasTexture { Atlas = atlas, Region = new Rect2(cell * variant, 0, cell, atlas.GetHeight()) };
-        _sprite.Scale = Vector2.One * (variant == 1 ? 0.14f : (variant == 2 ? 0.20f : 0.12f));
-        ZIndex = variant == 2 ? -7 : 0;
-        var collision = GetNode<CollisionShape2D>("CollisionShape2D");
-        collision.Shape = variant == 1
-            ? new RectangleShape2D { Size = new Vector2(26f, 72f) }
-            : new CircleShape2D { Radius = variant == 2 ? 49f : 29f };
-        Rotation = variant == 1 ? 0.15f : (float)GD.RandRange(-0.4, 0.4);
-        _anchorX = Position.X;
-        _driftPhase = 0f;
-        _sprite.Rotation = 0f;
-        _sprite.Material = variant == 2 ? new ShaderMaterial { Shader = GD.Load<Shader>("res://Shaders/CaveCrystal.gdshader") } : null;
+        GameAssets.Load(); _level = GetParent() as LevelGenerator; _sprite = GetNode<Sprite2D>("RockSprite"); _collision = GetNode<CollisionShape2D>("CollisionShape2D");
+        _shapes = new Shape2D[] { new CircleShape2D { Radius = 29 },new RectangleShape2D { Size = new Vector2(26,72) },
+            new CircleShape2D { Radius = 49 },new CircleShape2D { Radius = 37 },
+            new RectangleShape2D { Size = new Vector2(24,66) },new CircleShape2D { Radius = 24 } };
+        _shadow = new LightOccluder2D { Occluder = new OccluderPolygon2D {
+            Polygon = new[] { new Vector2(-26,-26),new Vector2(26,-26),new Vector2(26,26),new Vector2(-26,26) } } };
+        AddChild(_shadow);
+        _glow = CaveLighting.Light(new Color("ff7028"),0.32f,0.40f,false); AddChild(_glow); _glow.Visible = false;
+        _warning = new Label { Text = "!",Position = new Vector2(-10,-76),MouseFilter = Control.MouseFilterEnum.Ignore };
+        _warning.AddThemeFontSizeOverride("font_size",34); _warning.AddThemeColorOverride("font_color",new Color("ffb556"));
+        _warning.Material = GameAssets.Unshaded; AddChild(_warning);
     }
-
-	public void TriggerAppear(Vector2 targetScale)
-	{
-		_targetScale = targetScale;
-		Scale = Vector2.Zero;
-		Modulate = new Color(1f, 1f, 1f, 0f);
-		_appearTimer = 0f;
+    public void ConfigureVariant(int variant,float targetX = 0f)
+    {
+        _safeSide = 0;
+        _variant = Mathf.Clamp(variant,0,5); _phase = 0f; _dashStarted = false; _dashTarget = targetX;
         _anchorX = Position.X;
-	}
-
-	public override void _Process(double delta)
-	{
-		// Boulder: rolls slowly and sinks against the scroll. Shard: sways.
-        // Crystal cluster: drifts laterally with a gentle vertical oscillation.
-        float scrollRatio = _variant == 0 ? 0.88f : (_variant == 1 ? 1.08f : 1f);
-        Position += new Vector2(0, -speed * scrollRatio * (float)delta);
-        if (_appearTimer == 0f) _anchorX = Position.X;
-        _driftPhase += (float)delta;
-        if (speed > 0f && _variant != 2)
+        _frequency = (float)GD.RandRange(0.7,1.7); _amplitude = (float)GD.RandRange(65,135);
+        _spin = (GD.Randf()<0.5f ? -1f : 1f)*(float)GD.RandRange(0.8,2.6);
+        _driftVelocity = (GD.Randf()<0.5f ? -1f : 1f)*(float)GD.RandRange(120,240);
+        _sprite.Texture = GameAssets.HazardTextures[_variant];
+        float canvas = _variant == 1 || _variant == 4 ? 103f : _variant == 2 ? 145f : _variant == 3 ? 103f : _variant == 5 ? 70f : 87f;
+        _sprite.Scale = Vector2.One*canvas/_sprite.Texture.GetWidth();
+        _sprite.Position = Vector2.Zero; _sprite.Rotation = 0f;
+        _sprite.Material = _variant >= 2 && _variant != 4 ? GameAssets.Unshaded : null;
+        _collision.Shape = _shapes[_variant];
+        _glow.Visible = _variant == 2 || _variant == 3 || _variant == 5;
+        _glow.Color = _variant == 2 ? new Color("59dfe8") : new Color("ff7028");
+        _warning.Visible = _variant == 4;
+        _shadow.Visible = _variant != 2;
+        ZIndex = _variant == 2 ? -7 : 0;
+        Rotation = _variant == 1 ? 0.15f : (float)GD.RandRange(-0.4,0.4);
+    }
+    public bool ProtectPassage(int side,float scale)
+    {
+        _safeSide = side < 0 ? -1 : 1;
+        _protectedRadius = SafePassage.ColliderRadius(_variant)*scale*SafePassage.AppearOvershoot;
+        return KeepPassageOpen();
+    }
+    private bool KeepPassageOpen()
+    {
+        if (_safeSide == 0 || _level == null) return true;
+        _level.GetRockBounds(Position.Y,out float left,out float right);
+        float lane = _level.SafeLaneAt(Position.Y);
+        if (!SafePassage.TryBounds(_safeSide,lane,_protectedRadius,left,right,out float min,out float max))
         {
-            float intensity = Mathf.Lerp(1f, 1.55f, MotionDifficulty);
-            float phase = _driftPhase * intensity;
-            float amplitude = _variant == 0 ? 95f : 135f;
-            float frequency = _variant == 0 ? 0.95f : 1.45f;
-            Position = new Vector2(Mathf.Clamp(_anchorX + Mathf.Sin(phase * frequency) * amplitude, -180f, 180f), Position.Y);
-            if (_variant == 0) Rotation += 0.75f * intensity * (float)delta;
-            else Rotation = Mathf.Sin(phase * 1.65f) * 0.70f;
+            SetDeferred("monitorable",false); Hide(); ProcessMode = ProcessModeEnum.Disabled;
+            return false;
         }
-
-		if (_appearTimer < AppearDuration)
-		{
-			_appearTimer += (float)delta;
-			float t = Mathf.Clamp(_appearTimer / AppearDuration, 0f, 1f);
-			// Плавна функція появи з легким відскоком (overshoot)
-			float easeOutBack = 1f + 2.70158f * Mathf.Pow(t - 1f, 3f) + 1.70158f * Mathf.Pow(t - 1f, 2f);
-			Scale = _targetScale * Mathf.Clamp(easeOutBack, 0f, 1.15f);
-			Modulate = new Color(1f, 1f, 1f, t);
-		}
-		
-		if (Position.Y < -500f)
-		{
-			SetDeferred("monitorable", false);
-			Visible = false;
-			ProcessMode = ProcessModeEnum.Disabled;
-		}
-	}
+        float x = SafePassage.Clamp(Position.X,min,max);
+        if (_variant == 3 && x != Position.X)
+            _driftVelocity = x <= min ? Mathf.Abs(_driftVelocity) : -Mathf.Abs(_driftVelocity);
+        Position = new Vector2(x,Position.Y);
+        return true;
+    }
+    public void TriggerAppear(Vector2 targetScale)
+    {
+        _targetScale = targetScale; _appearTimer = 0f;
+        Scale = Vector2.Zero; Modulate = new Color(1,1,1,0);
+        _anchorX = Position.X;
+    }
+    public override void _Process(double delta)
+    {
+        float dt = (float)delta;
+        if (_appearTimer == 0f) _anchorX = Position.X;
+        _phase += dt;
+        float intensity = Mathf.Lerp(1f,1.5f,MotionDifficulty);
+        float scroll = _variant == 0 ? 0.88f : _variant == 1 ? 1.08f : _variant == 5 ? 1.28f : 1f;
+        Position += new Vector2(0,-speed*scroll*dt);
+        if (speed > 0f)
+        {
+            if (_variant == 0 || _variant == 1 || _variant == 5)
+            {
+                float x = _anchorX + Mathf.Sin(_phase*_frequency*intensity)*_amplitude;
+                if (_variant == 5) x += Mathf.Sin(_phase*3.7f+1.3f)*35f;
+                Position = new Vector2(_safeSide == 0 ? Mathf.Clamp(x,-180,180) : x,Position.Y);
+                Rotation = _variant == 1 ? Mathf.Sin(_phase*1.65f)*0.70f : Rotation+(_variant == 0 ? _spin : _spin+3.5f)*dt;
+            }
+            else if (_variant == 3)
+            {
+                float x = Position.X + _driftVelocity*dt*intensity;
+                if (_safeSide == 0 && (x < -180f || x > 180f)) { _driftVelocity = -_driftVelocity; x = Mathf.Clamp(x,-180,180); }
+                Position = new Vector2(x,Position.Y); Rotation += (_driftVelocity>0 ? 1 : -1)*5.5f*dt;
+            }
+            else if (_variant == 4)
+            {
+                // Dash is triggered on approach, not at off-screen spawn time.
+                if (!_dashStarted && Position.Y < 480f)
+                {
+                    _dashStarted = true; _phase = 0f;
+                    if (_level != null) _dashTarget = _level.Runner?.Position.X ?? _dashTarget;
+                }
+                if (_dashStarted && _phase > 0.65f)
+                {
+                    Position = new Vector2(Mathf.MoveToward(Position.X,_dashTarget,360f*intensity*dt),Position.Y);
+                    _warning.Hide(); Rotation += _spin*dt;
+                }
+                else if (_dashStarted) _warning.Modulate = new Color(1,1,1,0.55f+0.45f*Mathf.Sin(_phase*22f));
+            }
+        }
+        // Apply after sway, bounce and dash. Includes maximum appearance scale;
+        // no variant can cross the continuously protected corridor.
+        if (!KeepPassageOpen()) return;
+        if (_appearTimer < AppearDuration)
+        {
+            _appearTimer += dt; float t = Mathf.Clamp(_appearTimer/AppearDuration,0,1);
+            float ease = 1+2.70158f*Mathf.Pow(t-1,3)+1.70158f*Mathf.Pow(t-1,2);
+            Scale = _targetScale*Mathf.Clamp(ease,0,1.15f); Modulate = new Color(1,1,1,t);
+        }
+        if (Position.Y < -560f) { SetDeferred("monitorable",false); Hide(); ProcessMode = ProcessModeEnum.Disabled; }
+    }
 }

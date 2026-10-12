@@ -1,0 +1,117 @@
+using Godot;
+
+/// <summary>Рекорди та налаштування гучності, що зберігаються між запусками (user://).</summary>
+public static class SaveData
+{
+	private const string FilePath = "user://crust_save.cfg";
+	private static bool _loaded;
+
+	public static float BestDistance { get; private set; }
+	public static int BestCoins { get; private set; }
+	public static int BestLap { get; private set; } = 1;
+	public static int Wallet { get; private set; }
+    public static int Insulation { get; private set; }
+    public static int Cooling { get; private set; }
+    public static int Lantern { get; private set; }
+    public static int SkinOwnedMask { get; private set; } = 1;
+    public static int SelectedSkin { get; private set; }
+    public static int SkinPrice(int skin) => skin == 1 ? 24 : skin == 2 ? 36 : 0;
+    public static bool OwnsSkin(int skin) => skin >= 0 && skin <= 2 && (SkinOwnedMask & (1 << skin)) != 0;
+    public static bool SelectOrBuySkin(int skin)
+    {
+        Load();
+        if (skin < 0 || skin > 2) return false;
+        if (!OwnsSkin(skin))
+        {
+            int price = SkinPrice(skin);
+            if (Wallet < price) return false;
+            Wallet -= price; SkinOwnedMask |= 1 << skin;
+        }
+        SelectedSkin = skin;
+        Save();
+        return true;
+    }
+    public static string SkinPath(int skin) => skin == 1 ? "res://Textures/Generated/hero_ice.png"
+        : skin == 2 ? "res://Textures/Generated/hero_ember.png" : "res://Textures/Generated/hero_cube_v2.png";
+    public static int Price(int level) => 12 * (level + 1);
+    public static int UpgradeLevel(int item) => item == 0 ? Insulation : item == 1 ? Cooling : item == 2 ? Lantern : 3;
+    public static bool Buy(int item)
+    {
+        Load();
+        if (item < 0 || item > 2) return false;
+        int level = UpgradeLevel(item), price = Price(level);
+        if (level >= 3 || Wallet < price) return false;
+        Wallet -= price;
+        if (item == 0) Insulation++; else if (item == 1) Cooling++; else Lantern++;
+        Save();
+        return true;
+    }
+    // Wallet changes immediately in memory; disk writes are batched and flushed on normal exit.
+    private static bool _dirty;
+    private static float _saveTimer;
+    public static void CreditCoin(int amount = 1) { Load(); Wallet += Mathf.Max(0,amount); _dirty = true; }
+    public static void Tick(float dt)
+    {
+        if (!_dirty) return;
+        _saveTimer += dt;
+        if (_saveTimer >= 0.75f) Save();
+    }
+
+    public static bool EconomyLighting;
+    public static float MusicVolume = 0.7f;
+	public static float SfxVolume = 1f;
+
+	public static void Load()
+	{
+		if (_loaded) return;
+		_loaded = true;
+
+		var cfg = new ConfigFile();
+		if (cfg.Load(FilePath) != Error.Ok) return;
+
+		Wallet = Mathf.Max(0, cfg.GetValue("shop", "wallet", 0).AsInt32());
+        Insulation = Mathf.Clamp(cfg.GetValue("shop", "insulation", 0).AsInt32(), 0, 3);
+        Cooling = Mathf.Clamp(cfg.GetValue("shop", "cooling", 0).AsInt32(), 0, 3);
+        Lantern = Mathf.Clamp(cfg.GetValue("shop", "lantern", 0).AsInt32(), 0, 3);
+        SkinOwnedMask = (cfg.GetValue("skins", "owned", 1).AsInt32() & 7) | 1;
+        SelectedSkin = Mathf.Clamp(cfg.GetValue("skins", "selected", 0).AsInt32(), 0, 2);
+        if (!OwnsSkin(SelectedSkin)) SelectedSkin = 0;
+        BestDistance = cfg.GetValue("best", "distance", 0f).AsSingle();
+		BestCoins = cfg.GetValue("best", "coins", 0).AsInt32();
+		BestLap = Mathf.Max(1, cfg.GetValue("best", "lap", 1).AsInt32());
+		EconomyLighting = cfg.GetValue("graphics","economy_lighting",false).AsBool();
+        MusicVolume = Mathf.Clamp(cfg.GetValue("audio", "music", 0.7f).AsSingle(), 0f, 1f);
+		SfxVolume = Mathf.Clamp(cfg.GetValue("audio", "sfx", 1f).AsSingle(), 0f, 1f);
+	}
+
+	public static void Save()
+	{
+		_saveTimer = 0f;
+        var cfg = new ConfigFile();
+		cfg.SetValue("shop", "wallet", Wallet);
+        cfg.SetValue("shop", "insulation", Insulation);
+        cfg.SetValue("shop", "cooling", Cooling);
+        cfg.SetValue("shop", "lantern", Lantern);
+        cfg.SetValue("skins", "owned", SkinOwnedMask);
+        cfg.SetValue("skins", "selected", SelectedSkin);
+        cfg.SetValue("best", "distance", BestDistance);
+		cfg.SetValue("best", "coins", BestCoins);
+		cfg.SetValue("best", "lap", BestLap);
+		cfg.SetValue("graphics","economy_lighting",EconomyLighting);
+        cfg.SetValue("audio", "music", MusicVolume);
+		cfg.SetValue("audio", "sfx", SfxVolume);
+		_dirty = cfg.Save(FilePath) != Error.Ok;
+	}
+
+	/// <summary>Повертає true, якщо пройдена дистанція стала новим рекордом.</summary>
+	public static bool SubmitRun(float distance, int coins, int lap)
+	{
+		Load();
+		bool record = distance > BestDistance;
+		if (record) BestDistance = distance;
+		if (coins > BestCoins) BestCoins = coins;
+		if (lap > BestLap) BestLap = lap;
+		Save();
+		return record;
+	}
+}
