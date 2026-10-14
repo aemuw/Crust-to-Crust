@@ -31,6 +31,8 @@ public partial class CoreAudioSmoke : Node
             Check(accent.Playing,"real core crossing plays the accent");
             float cursor=accent.GetPlaybackPosition(); level._Process(.01); await Wait(.15f);
             Check(accent.GetPlaybackPosition()>cursor+.03f,"remaining near the core does not restart the accent");
+            await Wait(.4f);
+            Check(hum.VolumeDb>-9f,"core rumble has sufficient gain to compete with cave ambience at the core");
             GetTree().Paused=true; float humCursor=hum.GetPlaybackPosition(), accentCursor=accent.GetPlaybackPosition(); await Wait(.15f);
             Check(Mathf.Abs(hum.GetPlaybackPosition()-humCursor)<.03f && Mathf.Abs(accent.GetPlaybackPosition()-accentCursor)<.03f,"pause freezes core effects");
             GetTree().Paused=false;

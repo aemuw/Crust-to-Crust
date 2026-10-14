@@ -98,7 +98,7 @@ public partial class AudioManager : Node
     public void SetZone(CaveZone zone) => _zone = zone;
     public void SetCorePresence(float proximity,bool active)
     {
-        _coreTarget = active && float.IsFinite(proximity) ? Mathf.Pow(Mathf.Clamp(proximity,0,1),2)*0.25f : 0f;
+        _coreTarget = active && float.IsFinite(proximity) ? Mathf.Pow(Mathf.Clamp(proximity,0,1),2)*0.4f : 0f;
         if (!active)
         {
             _coreLevel=0; _coreRumble?.Stop(); _coreAccent?.Stop();

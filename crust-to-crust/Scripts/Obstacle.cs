@@ -11,15 +11,13 @@ public partial class Obstacle : Area2D
     private Shape2D[] _shapes;
     private LightOccluder2D _shadow;
     private PointLight2D _glow;
-    private Label _warning;
-    private Node2D _warningAnchor;
+    private HazardWarning _warning;
     private Vector2 _targetScale = Vector2.One;
     private float _appearTimer, _phase, _anchorX, _frequency, _amplitude, _spin, _driftVelocity, _dashTarget;
     private int _variant;
     private bool _dashStarted;
     private int _dashCount;
     private LevelGenerator _level;
-    private Camera2D _camera;
     private int _safeSide;
     private float _protectedRadius;
     private float _scrollFactor=1f, _retireClock;
@@ -34,7 +32,6 @@ public partial class Obstacle : Area2D
     public override void _Ready()
     {
         GameAssets.Load(); _level = GetParent() as LevelGenerator; _sprite = GetNode<Sprite2D>("RockSprite"); _collision = GetNode<CollisionShape2D>("CollisionShape2D");
-        _camera = _level?.GetNodeOrNull<Camera2D>("Camera2D");
         _shapes = new Shape2D[] { new CircleShape2D { Radius = 29 },new RectangleShape2D { Size = new Vector2(26,72) },
             new CircleShape2D { Radius = 49 },new CircleShape2D { Radius = 37 },
             new RectangleShape2D { Size = new Vector2(24,66) },new CircleShape2D { Radius = 24 } };
@@ -42,11 +39,7 @@ public partial class Obstacle : Area2D
         AddChild(_shadow);
         for(int i=0;i<4;i++) { _pieces[i]=new Sprite2D { RegionEnabled=true,Visible=false }; AddChild(_pieces[i]); }
         _glow = CaveLighting.Light(new Color("ff7028"),0.32f,0.40f,false); AddChild(_glow); _glow.Visible = false;
-        _warning = new Label { Text = "!",Position = new Vector2(-10,0),MouseFilter = Control.MouseFilterEnum.Ignore };
-        _warning.AddThemeFontSizeOverride("font_size",34); _warning.AddThemeColorOverride("font_color",new Color("ffb556"));
-        _warning.Material = GameAssets.Unshaded;
-        _warningAnchor = new Node2D { TopLevel = true,ZIndex = 20 }; AddChild(_warningAnchor);
-        _warningAnchor.AddChild(_warning);
+        _warning=new HazardWarning { Name="HazardWarning" }; AddChild(_warning);
     }
     public static HazardMotion SampleMotion(RunDirector director)
     {
@@ -76,7 +69,7 @@ public partial class Obstacle : Area2D
         _collision.Shape = _shapes[_variant];
         _glow.Visible = _variant == 2 || _variant == 3 || _variant == 5;
         _glow.Color = _variant == 2 ? new Color("59dfe8") : new Color("ff7028");
-        _warning.Visible = _variant == 4;
+        _warning.Hide();
         _warning.Modulate = Colors.White;
         _shadow.Visible = _variant != 2;
         ZIndex = _variant == 2 ? -7 : 0;
@@ -193,20 +186,11 @@ public partial class Obstacle : Area2D
                         _warning.Show();
                     }
                 }
-                else if (_dashStarted) _warning.Modulate = new Color(1,1,1,1f-SaveData.FlashIntensity*0.225f*(1f-Mathf.Sin(_phase*22f)));
+
             }
         }
-        var camera = _camera;
-        if (camera != null)
-        {
-            Transform2D canvas = GetViewport().GetCanvasTransform();
-            Vector2 screen = canvas * GlobalPosition + new Vector2(0,-76);
-            Vector2 size = GetViewport().GetVisibleRect().Size;
-            screen.X = Mathf.Clamp(screen.X,24,size.X-44); screen.Y = Mathf.Clamp(screen.Y,24,size.Y-100);
-            _warningAnchor.GlobalPosition = canvas.AffineInverse()*screen;
-            _warningAnchor.GlobalRotation = canvas.AffineInverse().X.Angle();
-        }
-        else _warningAnchor.GlobalPosition = GlobalPosition+new Vector2(0,-76);
+        _warning.SetCue(WarningActive && !_retiring,GlobalPosition,
+            new Vector2(_dashTarget,GlobalPosition.Y),_phase/WarningLeadSeconds,new Color("ffbd70"),true);
         // Apply after sway, bounce and dash. Includes maximum appearance scale;
         // no variant can cross the continuously protected corridor.
         if (!KeepPassageOpen()) return;
@@ -218,7 +202,7 @@ public partial class Obstacle : Area2D
         }
         if (CaveViewport.PassedTop(this,Mathf.Max(_protectedRadius,90))) Deactivate();
     }
-    private void Deactivate() { SetDeferred("monitorable",false); Hide(); ProcessMode=ProcessModeEnum.Disabled; }
+    private void Deactivate() { _warning.Hide(); SetDeferred("monitorable",false); Hide(); ProcessMode=ProcessModeEnum.Disabled; }
     public void RetireForClearance()
     {
         if(_retiring) return;

@@ -14,6 +14,7 @@ public partial class WallShooter : Node2D
     private bool _fired;
     private Vector2 _target;
     private ShooterAudioCue _audio;
+    private HazardWarning _warning;
     public float ChargeRemaining { get; private set; }
     public override void _Ready()
     {
@@ -23,6 +24,7 @@ public partial class WallShooter : Node2D
         _barrel.AddChild(new Polygon2D { Polygon=new[] {new Vector2(5,-6),new Vector2(49,-6),new Vector2(49,-3),new Vector2(5,-3)},Color=new Color("aebabc"),Material=GameAssets.Unshaded });
         _flash=new Sprite2D { Texture=GameAssets.Halo,Scale=Vector2.One*70/GameAssets.Halo.GetWidth(),Visible=false,ZIndex=2,Material=GameAssets.Unshaded }; AddChild(_flash);
         _audio=new ShooterAudioCue { Name="ShooterAudio" }; AddChild(_audio);
+        _warning=new HazardWarning { Name="HazardWarning" }; AddChild(_warning);
         ZIndex=3; Material=GameAssets.Unshaded; Deactivate();
     }
     public void Activate(LevelGenerator level,int variant,int side,float y)
@@ -36,6 +38,7 @@ public partial class WallShooter : Node2D
         _recoil=0; _flashTime=0; _flash.Hide();
         ChargeRemaining=WarningSeconds; _fired=false;
         _audio.Reset(variant);
+        _warning.Hide();
         Visible=true; ProcessMode=ProcessModeEnum.Inherit; QueueRedraw();
     }
     private void AttachToWall()
@@ -43,10 +46,10 @@ public partial class WallShooter : Node2D
         _level.GetRockBounds(Position.Y,out float left,out float right);
         Position=new Vector2((_side<0 ? left : right)-_side*(_variant==2 ? 10 : 36),Position.Y);
     }
-    public void Deactivate() { _audio?.Stop(); Visible=false; ProcessMode=ProcessModeEnum.Disabled; }
+    public void Deactivate() { _audio?.Stop(); _warning?.Hide(); Visible=false; ProcessMode=ProcessModeEnum.Disabled; }
     public override void _PhysicsProcess(double delta)
     {
-        if(_level?.IsGameActive!=true) { _audio?.Stop(); return; }
+        if(_level?.IsGameActive!=true) { _audio?.Stop(); _warning?.Hide(); return; }
         Position-=new Vector2(0,_level.FallSpeed*(float)delta); AttachToWall();
         float dt=(float)delta;
         _recoil=Mathf.MoveToward(_recoil,0,dt*50);
@@ -72,7 +75,7 @@ public partial class WallShooter : Node2D
                 _sprite.Modulate=new Color(0.65f,0.65f,0.65f);
             }
         }
-        QueueRedraw();
+        UpdateWarning(); QueueRedraw();
         if(CaveViewport.PassedTop(this,100)) Deactivate();
     }
     public Vector2 Muzzle=>_variant==2 ? GlobalPosition+new Vector2(-_side*54,0) : _barrel.ToGlobal(new Vector2(54,0));
@@ -82,23 +85,22 @@ public partial class WallShooter : Node2D
         float angle=Mathf.Clamp(Mathf.Atan2(Mathf.Max(0,-delta.Y),Mathf.Abs(delta.X)),Mathf.DegToRad(60),Mathf.DegToRad(70));
         return new Vector2(-_side*Mathf.Cos(angle),-Mathf.Sin(angle))*520;
     }
-    public override void _Draw()
+    private Vector2 Impact(Vector2 velocity)
     {
-        if(_fired || _level==null) return;
-        Color color=_variant==1 ? new Color("ffb05b") : new Color("8ce5e8");
-        color.A=0.22f;
-        Vector2 velocity=AimVelocity(_target)-new Vector2(0,_level.FallSpeed);
-        float impact=Mathf.Max(0,(_target.Y-Muzzle.Y)/Mathf.Min(-1,velocity.Y));
-        Vector2 origin=ToLocal(Muzzle), end=ToLocal(Muzzle+velocity*impact);
-        DrawDashedLine(origin,end,color,2,14,true);
-        color.A=0.7f;
-        DrawArc(end,18,0,Mathf.Tau,24,color,2,true);
-        // A charge pip stays visible even while the mount approaches from below the screen.
-        Transform2D canvas=GetViewport().GetCanvasTransform();
-        Vector2 screen=canvas*GlobalPosition, size=GetViewport().GetVisibleRect().Size;
-        screen.X=Mathf.Clamp(screen.X,24,size.X-24); screen.Y=Mathf.Clamp(screen.Y,24,size.Y-40);
-        Vector2 pip=ToLocal(canvas.AffineInverse()*screen);
-        DrawCircle(pip,8+5*(1-ChargeRemaining),color);
-        DrawArc(pip,19,-Mathf.Pi/2,-Mathf.Pi/2+Mathf.Tau*(1-ChargeRemaining),24,color,3,true);
+        velocity-=new Vector2(0,_level.FallSpeed);
+        float time=Mathf.Max(0,(_target.Y-Muzzle.Y)/Mathf.Min(-1,velocity.Y));
+        return Muzzle+velocity*time;
+    }
+    private void UpdateWarning()
+    {
+        if(_level==null) { _warning.Hide(); return; }
+        Vector2 velocity=AimVelocity(_target);
+        Color color=new(_variant==1 ? "ffb05b" : "8ce5e8");
+        _warning.SetCue(Visible && !_fired,Muzzle,Impact(velocity),1-ChargeRemaining/WarningSeconds,color);
+        if(_variant!=0)
+        {
+            float angle=Mathf.DegToRad(_variant==2 ? 12 : 10);
+            _warning.SetSpread(Impact(velocity.Rotated(-angle)),Impact(velocity.Rotated(angle)));
+        }
     }
 }
