@@ -15,6 +15,8 @@ public partial class AudioManager : Node
     private Tween _scoreFade;
     private bool _gameplayMusic;
     private AudioStreamPlayer _coreAccent;
+    private AudioStreamPlayer _coreRumble;
+    private float _coreTarget, _coreLevel;
     private CaveZone _zone = CaveZone.Basalt;
     private float _zonePitch = 1f;
 
@@ -66,8 +68,11 @@ public partial class AudioManager : Node
         _menuScore = CreateScore("MenuScore", "res://Audio/Music/menu_planets_lullaby.wav", -2f);
         _gameScore = CreateScore("GameScore", "res://Audio/Music/game_obsidian_rush.wav", -60f);
         _menuScore.Play();
-        _coreAccent = new AudioStreamPlayer { Name = "CoreAccent",Stream = GD.Load<AudioStream>("res://Audio/SFX/coin.wav"),Bus = SfxBus,VolumeDb = -8f,PitchScale = 0.55f };
+        _coreAccent = new AudioStreamPlayer { Name = "CoreAccent",Stream = GD.Load<AudioStream>("res://Audio/SFX/core_crossing.wav"),Bus = SfxBus,VolumeDb = -10f,ProcessMode = ProcessModeEnum.Pausable };
         AddChild(_coreAccent);
+        _coreRumble = CreateScore("CoreRumble","res://Audio/Ambience/core_rumble.wav",-60f);
+        _coreRumble.Bus = SfxBus;
+        _coreRumble.ProcessMode = ProcessModeEnum.Pausable;
 	}
     private AudioStreamPlayer CreateScore(string name, string path, float volume)
     {
@@ -91,11 +96,20 @@ public partial class AudioManager : Node
         _scoreFade.Chain().TweenCallback(Callable.From(() => _menuScore.Stop()));
     }
     public void SetZone(CaveZone zone) => _zone = zone;
+    public void SetCorePresence(float proximity,bool active)
+    {
+        _coreTarget = active && float.IsFinite(proximity) ? Mathf.Pow(Mathf.Clamp(proximity,0,1),2)*0.25f : 0f;
+        if (!active)
+        {
+            _coreLevel=0; _coreRumble?.Stop(); _coreAccent?.Stop();
+        }
+    }
     public override void _ExitTree()
     {
         // Release playback before a menu reload replaces the whole world.
         if(_music!=null) { _music.Stop(); _music.Stream=null; }
         if(_coreAccent!=null) { _coreAccent.Stop(); _coreAccent.Stream=null; }
+        if(_coreRumble!=null) { _coreRumble.Stop(); _coreRumble.Stream=null; }
         _scoreFade?.Kill();
         foreach (var score in new[] { _menuScore, _gameScore })
             if (score != null) { score.Stop(); score.Stream = null; }
@@ -107,5 +121,15 @@ public partial class AudioManager : Node
         float target = _zone == CaveZone.Core ? 0.78f : _zone == CaveZone.Magma ? 0.88f : _zone == CaveZone.Crystal ? 1.08f : 1f;
         _zonePitch = Mathf.Lerp(_zonePitch,target,1f-Mathf.Exp(-(float)delta*1.2f));
         _music.PitchScale = _zonePitch;
+        _coreLevel = Mathf.MoveToward(_coreLevel,_coreTarget,(float)delta*0.35f);
+        if (_coreRumble!=null)
+        {
+            if(_coreLevel>0.0001f)
+            {
+                if(!_coreRumble.Playing) _coreRumble.Play();
+                _coreRumble.VolumeDb = Mathf.LinearToDb(_coreLevel);
+            }
+            else if(_coreRumble.Playing) _coreRumble.Stop();
+        }
     }
 }

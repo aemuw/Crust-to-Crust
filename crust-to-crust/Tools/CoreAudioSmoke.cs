@@ -39,6 +39,9 @@ public partial class CoreAudioSmoke : Node
             Check(muted && hum.Bus==AudioManager.SfxBus && accent.Bus==AudioManager.SfxBus,"effects setting controls both core sounds");
             level.CurrentDepth=level.CoreDepthPoint+8000; level._Process(.01); await Wait(1.4f);
             Check(!hum.Playing,"rumble fades away after leaving the core region");
+            typeof(LevelGenerator).GetProperty("Lap").SetValue(level,2);
+            level.CurrentDepth=level.CoreDepthPoint-.1f; level._Process(.001); await Wait(.1f);
+            Check(accent.Playing,"the next traversal can play its own core crossing accent");
             level.CurrentDepth=level.CoreDepthPoint+1000; level._Process(.01); await Wait(.1f); level.StopFalling();
             Check(!hum.Playing && !accent.Playing,"stopping the world stops core effects");
             level.Free(); level=null; await Wait(.2f); GD.Print("CORE AUDIO SMOKE PASSED"); GetTree().Quit();

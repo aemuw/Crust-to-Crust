@@ -284,6 +284,7 @@ public partial class LevelGenerator : Node2D
 
 	public void StopFalling()
 	{
+        _audio?.SetCorePresence(0,false);
         ClearShooters();
 		IsGameActive = false;
 		FallSpeed = 0f;
@@ -413,6 +414,7 @@ public partial class LevelGenerator : Node2D
             SaveData.UnlockMastery(0); EmitSignal(SignalName.CoreCrossed);
         }
         _audio?.SetZone(Zone);
+        _audio?.SetCorePresence(1f-Mathf.Abs(CurrentDepth-CoreDepthPoint)/6000f,IsGameActive);
 		_tunnelVisualDepth = CurrentDepth;
 		ScrollEditableTunnelSegments(dt);
 
