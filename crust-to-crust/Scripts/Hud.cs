@@ -9,6 +9,9 @@ public partial class Hud : CanvasLayer
     private readonly Button[] _shopItems = new Button[3], _skinItems = new Button[CharacterCatalog.Count];
     private readonly Button[] _trailItems = new Button[4];
     private ProgressBar _heatBar;
+    private Control _lanternStatus;
+    private ProgressBar _chargeBar;
+    private Label _chargeText;
     private StyleBoxFlat _heatFill;
     private ShaderMaterial _vignette;
     private TextureRect _menuHero;
@@ -215,6 +218,16 @@ public partial class Hud : CanvasLayer
         _speedLabel = Text(root,"",16,new Color("a9bbc3")); _speedLabel.Position = new Vector2(24,105); _speedLabel.Hide();
         _shieldLabel = Text(root,"ЩИТ ГОТОВИЙ",17,Aqua); _shieldLabel.Position = new Vector2(24,134); _shieldLabel.Hide();
         _bonusLabel = Text(root,"",16,new Color("ffce79")); _bonusLabel.Position = new Vector2(24,162);
+        _lanternStatus=new Control { Name="LanternCharge",Visible=false,AnchorLeft=1,AnchorRight=1,OffsetLeft=-196,OffsetRight=-24,OffsetTop=88,OffsetBottom=142,MouseFilter=Control.MouseFilterEnum.Ignore };
+        root.AddChild(_lanternStatus);
+        var cell=Art(_lanternStatus,GameAssets.Battery,Vector2.Zero); cell.Position=new Vector2(0,0); cell.Size=new Vector2(25,43);
+        _chargeText=Text(_lanternStatus,"",14,new Color("93c8cb")); _chargeText.Position=new Vector2(34,0);
+        _chargeBar=new ProgressBar { MinValue=0,MaxValue=18,Step=0.01,ShowPercentage=false,Position=new Vector2(34,28),Size=new Vector2(138,7),MouseFilter=Control.MouseFilterEnum.Ignore };
+        var chargeBackground=new StyleBoxFlat { BgColor=Ink,BorderColor=Edge };
+        chargeBackground.SetBorderWidthAll(1); chargeBackground.SetCornerRadiusAll(2);
+        var chargeFill=new StyleBoxFlat { BgColor=new Color("70adb0") }; chargeFill.SetCornerRadiusAll(2);
+        _chargeBar.AddThemeStyleboxOverride("background",chargeBackground);
+        _chargeBar.AddThemeStyleboxOverride("fill",chargeFill); _lanternStatus.AddChild(_chargeBar);
         _journeyBar = new ProgressBar { Name = "JourneyProgress", MinValue = 0, MaxValue = 1, Step = 0.0001,
             ShowPercentage = false, Position = new Vector2(24,198), Size = new Vector2(220,10), Visible = false,
             MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -441,6 +454,14 @@ void fragment() {
         SetHeat(temperature,burning); _heatLabel.Visible = temperature > 0.02f || cooling > 0f;
         _heatLabel.Text = cooling > 0 ? $"ОХОЛОДЖЕНО  {cooling:0.0}с" : burning ? $"ГОРІННЯ — ШУКАЙ ОХОЛОДЖЕННЯ!  {seconds:0.0}с" : $"ТЕМПЕРАТУРА  {temperature*100:0}%";
         _heatLabel.AddThemeColorOverride("font_color",cooling > 0f ? Aqua : new Color("ffb06d"));
+    }
+    public void SetLanternCharge(float seconds,float capacity,bool wanted)
+    {
+        if(_lanternStatus==null) return;
+        _lanternStatus.Visible=_started && !_finished;
+        _chargeBar.MaxValue=capacity; _chargeBar.Value=seconds;
+        _chargeText.Text=seconds<=0 ? "ЛІХТАР · ПОРОЖНЬО" : $"ЛІХТАР · {Mathf.CeilToInt(seconds)} с"+(wanted ? "" : " · ВИМК.");
+        _chargeText.Modulate=seconds<3 ? new Color("ffb56a") : Colors.White;
     }
     public override void _Process(double delta)
     {

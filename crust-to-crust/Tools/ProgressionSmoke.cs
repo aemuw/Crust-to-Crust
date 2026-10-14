@@ -67,7 +67,7 @@ public partial class ProgressionSmoke : Node
             for (int step = 0; level.ActivePlaySeconds < 182f && step < 300; step++) await Wait(0.1f, true);
             Engine.TimeScale = 1f;
             Check(Mathf.IsEqualApprox(level.Difficulty, 1f), "difficulty reaches a bounded maximum after three minutes");
-            Check(Mathf.IsEqualApprox(level.CurrentObstacleInterval, 1.25f), "spawn interval stays bounded at maximum difficulty");
+            Check(Mathf.IsEqualApprox(level.CurrentObstacleInterval, 0.85f), "spawn interval stays bounded at maximum difficulty");
             await Capture("late-game-background-crystals");
             player.ProcessMode = ProcessModeEnum.Inherit;
             level.CurrentDepth = level.TunnelLength;

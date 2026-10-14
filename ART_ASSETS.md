@@ -67,6 +67,14 @@ blue-teal reflected light and painterly shadows, no objects/text.
 Інструмент створення — вбудований imagegen. Ассети не генеруються процедурно під час гри.
 
 ## ArtRefresh — 14.10.2026
+
+### Темний тунель: батарейка та нестабільна жеода
+
+Створено вбудованим imagegen, прозорі PNG у `crust-to-crust/Textures/ArtRefresh/`:
+
+- `battery_cell.png`: “Single chunky worn copper flashlight battery with charcoal ceramic bands, raised terminal, narrow luminous cyan glass energy gauge; hand-painted dark fantasy cave machinery, readable at40px, transparent background, no text, floor or cloud.” У грі — предмет висотою52px та маленька іконка заряду.
+- `unstable_geode.png`: “Compact angular cracked black basalt shell with sharp turquoise blades and a small amber heart poised to split; hand-painted dark cave art, readable at90px, transparent background, no detached shards, floor or text.” Жеода вростає у стіну кристалічного шару, попереджає про залп і випускає три уламки вгору.
+
 Текстури з чату «Створи промпт для нової графіки» (01a13970-7bc1-7f23-8133-648a32f580ed) підключено через GameAssets, SaveData та сцени. Папка: crust-to-crust/Textures/ArtRefresh. Структура збережень і колізії скінів не змінені.
 Стіни cave_basalt/cave_magma, фони crystal_chasm/core_chasm, скіни hero_basalt/ice/ember, кристали crystal_cyan, уламки basalt_rock/obsidian_shard, magma_wheel, shield_obsidian, waterfall, light_halo, flashlight_cone та flame використовуються у грі. Монети Gold_1–3 утворюють цикл 1–2–3–2. crystal_amber залишається запасним варіантом.
 

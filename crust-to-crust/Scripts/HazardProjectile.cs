@@ -19,10 +19,11 @@ public partial class HazardProjectile : Area2D
     public void Activate(Vector2 position,Vector2 velocity,int variant,LevelGenerator level)
     {
         _level=level; Position=position; _velocity=velocity; _life=0;
-        _sprite.Texture=GameAssets.HazardTextures[variant==0 ? 1 : 5];
+        _sprite.Texture=GameAssets.HazardTextures[variant==1 ? 5 : 1];
         float size=variant==0 ? 24f : 23f;
         _sprite.Scale=Vector2.One*size/_sprite.Texture.GetWidth();
-        _sprite.Modulate=variant==0 ? new Color("b5faff") : new Color("ffb271");
+        _sprite.Modulate=variant==1 ? new Color("ffb271") : new Color("b5faff");
+        Modulate=Colors.White;
         Visible=true; ProcessMode=ProcessModeEnum.Inherit; SetDeferred("monitorable",true);
     }
     public void Deactivate()
@@ -40,6 +41,7 @@ public partial class HazardProjectile : Area2D
         if(player!=null && player.GetNode<Area2D>("Hitbox").Monitoring &&
             player.ProjectileSweepHits(before,GlobalPosition,Radius) && player.ReceiveProjectileHit())
         { Deactivate(); return; }
-        if(_life>2.1f || Position.Y < -650 || Mathf.Abs(Position.X)>370) Deactivate();
+        Modulate=new Color(1,1,1,Mathf.Clamp((2.1f-_life)/0.2f,0,1));
+        if(_life>2.1f || CaveViewport.PassedTop(this,24)) Deactivate();
     }
 }

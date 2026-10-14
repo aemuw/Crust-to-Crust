@@ -51,6 +51,13 @@ public partial class VisualSmoke : Node
             {
                 float off = await Brightness(false,"off"), on = await Brightness(true,"on");
                 Check(on > off + 0.01f,$"lantern visibly illuminates the actual cave backdrop ({off:0.000} -> {on:0.000})");
+                var battery=GD.Load<PackedScene>("res://Scenes/Obstacles/Coin.tscn").Instantiate<Coin>(); level.AddChild(battery);
+                battery.Position=new Vector2(-90,120); battery.speed=0; battery.Show(); battery.TriggerAppear(PickupKind.Battery); battery._Process(0.4); battery.SetProcess(false);
+                var rock=GD.Load<PackedScene>("res://Scenes/Obstacles/Obstacle.tscn").Instantiate<Obstacle>(); level.AddChild(rock);
+                rock.Position=new Vector2(75,35); rock.ConfigureVariant(0); rock.TriggerAppear(Vector2.One); rock.speed=0; rock.Show(); rock._Process(0.4); rock.SetProcess(false);
+                var geode=new WallShooter(); level.AddChild(geode); geode.Activate(level,2,1,210); geode.SetPhysicsProcess(false);
+                await Brightness(false,"encounter-off"); await Brightness(true,"encounter-on");
+                battery.Free(); rock.Free(); geode.Free();
             }
             player.SetProcess(true); lamp.Enabled = true;
             level.CurrentDepth = level.CoreDepthPoint;

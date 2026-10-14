@@ -17,7 +17,7 @@ public static class CaveLighting
     public static void Setup(LevelGenerator level)
     {
         GameAssets.Load();
-        level.CaveAmbient = new CanvasModulate { Name = "CaveAmbient",Color = new Color(0.075f,0.095f,0.13f) };
+        level.CaveAmbient = new CanvasModulate { Name = "CaveAmbient",Color = new Color(0.03f,0.045f,0.065f) };
         level.AddChild(level.CaveAmbient);
         Shader rockShader = GD.Load<Shader>("res://Shaders/CaveRock.gdshader");
         Shader coreShader = GD.Load<Shader>("res://Shaders/CoreBackdrop.gdshader");
@@ -53,7 +53,7 @@ public static class CaveLighting
                 crystal.Scale *= correction;
                 foreach (Node area in crystal.GetChildren())
                     if (area is Area2D collisionArea) collisionArea.Scale /= correction;
-                var light = Light(new Color("59dfe8"),1.05f/crystal.Scale.X,0.92f,false);
+                var light = Light(new Color("59dfe8"),0.65f/crystal.Scale.X,0.24f,false);
                 light.Name = "CrystalLight"; light.Enabled = false;
                 light.Position = new Vector2(crystal.Position.X < 0 ? 125 : -125,0)/correction;
                 crystal.AddChild(light); level.CrystalLights.Add(light);

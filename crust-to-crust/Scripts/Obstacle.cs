@@ -22,6 +22,10 @@ public partial class Obstacle : Area2D
     private Camera2D _camera;
     private int _safeSide;
     private float _protectedRadius;
+    private float _scrollFactor=1f, _retireClock;
+    private bool _retiring;
+    private readonly Sprite2D[] _pieces=new Sprite2D[4];
+    private readonly Vector2[] _pieceOrigins=new Vector2[4];
     private const float AppearDuration = 0.35f;
     public const float WarningLeadSeconds = 0.9f;
     public bool WarningActive => _variant == 4 && _dashStarted && _phase <= WarningLeadSeconds;
@@ -35,6 +39,7 @@ public partial class Obstacle : Area2D
             new RectangleShape2D { Size = new Vector2(24,66) },new CircleShape2D { Radius = 24 } };
         _shadow = new LightOccluder2D { Occluder = new OccluderPolygon2D { CullMode=OccluderPolygon2D.CullModeEnum.Disabled } };
         AddChild(_shadow);
+        for(int i=0;i<4;i++) { _pieces[i]=new Sprite2D { RegionEnabled=true,Visible=false }; AddChild(_pieces[i]); }
         _glow = CaveLighting.Light(new Color("ff7028"),0.32f,0.40f,false); AddChild(_glow); _glow.Visible = false;
         _warning = new Label { Text = "!",Position = new Vector2(-10,0),MouseFilter = Control.MouseFilterEnum.Ignore };
         _warning.AddThemeFontSizeOverride("font_size",34); _warning.AddThemeColorOverride("font_color",new Color("ffb556"));
@@ -52,6 +57,10 @@ public partial class Obstacle : Area2D
     {
         _safeSide = 0;
         _variant = Mathf.Clamp(variant,0,5); _phase = 0f; _dashStarted = false; _dashCount=0; _dashTarget = targetX;
+        _retiring=false; _retireClock=0;
+        foreach(var piece in _pieces) piece.Hide();
+        _sprite.Show(); _collision.SetDeferred("disabled",false); _glow.Energy=0.4f;
+        _scrollFactor=DefaultScroll;
         _anchorX = Position.X;
         HazardMotion profile = motion ?? SampleMotion(_level?.Director);
         _frequency = profile.Frequency; _amplitude = profile.Amplitude;
@@ -75,8 +84,16 @@ public partial class Obstacle : Area2D
     {
         _safeSide = side < 0 ? -1 : 1;
         _protectedRadius = SafePassage.ColliderRadius(_variant)*scale*SafePassage.AppearOvershoot;
+        _scrollFactor=DefaultScroll;
+        if(_level!=null && !_level.CanHazardTraverse(_safeSide,Position.Y,_protectedRadius,_scrollFactor))
+        {
+            // Match wall scrolling when a faster/slower vertical path would pinch later.
+            _scrollFactor=1f;
+            if(!_level.CanHazardTraverse(_safeSide,Position.Y,_protectedRadius,_scrollFactor)) return false;
+        }
         return KeepPassageOpen();
     }
+    private float DefaultScroll=>_variant==0 ? 0.88f : _variant==1 ? 1.08f : _variant==5 ? 1.28f : 1f;
     private bool KeepPassageOpen()
     {
         if (_safeSide == 0 || _level == null) return true;
@@ -84,7 +101,7 @@ public partial class Obstacle : Area2D
         float lane = _level.SafeLaneAt(Position.Y);
         if (!SafePassage.TryBounds(_safeSide,lane,_protectedRadius,left,right,out float min,out float max,_level.Runner?.CollisionEnvelopeRadius??SafePassage.PlayerRadius))
         {
-            SetDeferred("monitorable",false); Hide(); ProcessMode = ProcessModeEnum.Disabled;
+            RetireForClearance();
             return false;
         }
         float x = SafePassage.Clamp(Position.X,min,max);
@@ -102,10 +119,24 @@ public partial class Obstacle : Area2D
     public override void _Process(double delta)
     {
         float dt = (float)delta;
+        if(_retiring)
+        {
+            Position+=new Vector2(0,-speed*_scrollFactor*dt); _retireClock+=dt;
+            float fade=Mathf.Clamp(1-_retireClock/0.65f,0,1);
+            for(int i=0;i<4;i++)
+            {
+                Vector2 direction=new Vector2(i%2==0 ? -1 : 1,i<2 ? -0.6f : 0.6f);
+                _pieces[i].Position=_pieceOrigins[i]+direction*_retireClock*65;
+                _pieces[i].Rotation+=_spin*dt; _pieces[i].Modulate=new Color(1,1,1,fade);
+            }
+            _glow.Energy=0.4f*fade;
+            if(CaveViewport.PassedTop(this,120)) Deactivate();
+            return;
+        }
         if (_appearTimer == 0f) _anchorX = Position.X;
         _phase += dt;
         float intensity = Mathf.Lerp(1f,1.5f,MotionDifficulty);
-        float scroll = _variant == 0 ? 0.88f : _variant == 1 ? 1.08f : _variant == 5 ? 1.28f : 1f;
+        float scroll = _scrollFactor;
         Position += new Vector2(0,-speed*scroll*dt);
         if (speed > 0f)
         {
@@ -167,11 +198,31 @@ public partial class Obstacle : Area2D
             float ease = 1+2.70158f*Mathf.Pow(t-1,3)+1.70158f*Mathf.Pow(t-1,2);
             Scale = _targetScale*Mathf.Clamp(ease,0,1.15f); Modulate = new Color(1,1,1,t);
         }
-        if (Position.Y < -560f) { SetDeferred("monitorable",false); Hide(); ProcessMode = ProcessModeEnum.Disabled; }
+        if (CaveViewport.PassedTop(this,Mathf.Max(_protectedRadius,90))) Deactivate();
+    }
+    private void Deactivate() { SetDeferred("monitorable",false); Hide(); ProcessMode=ProcessModeEnum.Disabled; }
+    public void RetireForClearance()
+    {
+        if(_retiring) return;
+        if(!CaveViewport.Intersects(this,Mathf.Max(_protectedRadius,90))) { Deactivate(); return; }
+        _retiring=true; _retireClock=0;
+        SetDeferred("monitorable",false); _collision.SetDeferred("disabled",true);
+        _warning.Hide(); _shadow.Hide();
+        Vector2 half=_sprite.Texture.GetSize()/2;
+        for(int i=0;i<4;i++)
+        {
+            var piece=_pieces[i]; Vector2 top=new Vector2(i%2,i/2)*half;
+            piece.Texture=_sprite.Texture; piece.RegionRect=new Rect2(top,half);
+            piece.Scale=_sprite.Scale; piece.Material=_sprite.Material;
+            _pieceOrigins[i]=(top+half/2-_sprite.Texture.GetSize()/2)*_sprite.Scale;
+            piece.Position=_pieceOrigins[i]; piece.Rotation=0; piece.Modulate=Colors.White; piece.Show();
+        }
+        _sprite.Hide();
     }
     public bool BlocksEscapeAt(float x,float seconds,float playerRadius)
     {
-        float scroll=_variant==0 ? 0.88f : _variant==1 ? 1.08f : _variant==5 ? 1.28f : 1f;
+        if(_retiring) return false;
+        float scroll=_scrollFactor;
         float y=Position.Y-speed*scroll*seconds;
         float radius=SafePassage.ColliderRadius(_variant)*_targetScale.X*SafePassage.AppearOvershoot;
         if(Mathf.Abs(y-(_level?.Runner?.FixedY??-200))>radius+playerRadius+speed*0.04f) return false;

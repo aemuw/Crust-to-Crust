@@ -4,6 +4,7 @@ using Godot;
 public partial class WallShooter : Node2D
 {
     public const float WarningSeconds=1f;
+    public const float MinimumFireGap=250f, MaximumFireGap=580f, PreferredFireGap=420f;
     private LevelGenerator _level;
     private Sprite2D _sprite;
     private int _variant,_side;
@@ -28,7 +29,7 @@ public partial class WallShooter : Node2D
     private void AttachToWall()
     {
         _level.GetRockBounds(Position.Y,out float left,out float right);
-        Position=new Vector2((_side<0 ? left : right)-_side*36,Position.Y);
+        Position=new Vector2((_side<0 ? left : right)-_side*(_variant==2 ? 10 : 36),Position.Y);
     }
     public void Deactivate() { Visible=false; ProcessMode=ProcessModeEnum.Disabled; }
     public override void _PhysicsProcess(double delta)
@@ -38,25 +39,34 @@ public partial class WallShooter : Node2D
         if(!_fired)
         {
             ChargeRemaining=Mathf.Max(0,ChargeRemaining-(float)delta);
-            _sprite.Modulate=Colors.White.Lerp(new Color(_variant==0 ? "a0ffff" : "ffb367"),1f-ChargeRemaining);
-            if(ChargeRemaining<=0 && Position.Y<520)
+            _sprite.Modulate=Colors.White.Lerp(new Color(_variant==1 ? "ffb367" : "a0ffff"),1f-ChargeRemaining);
+            float gap=Position.Y-(_level.Runner?.Position.Y??-200);
+            if(ChargeRemaining<=0 && gap<=MaximumFireGap)
             {
                 _fired=true;
                 // Never fire after being scrolled past the player or outside the visible cave.
-                if(Position.Y>-80) _level.TryFireVolley(this,_variant,_target);
+                if(gap>=MinimumFireGap) _level.TryFireVolley(this,_variant,_target);
                 _sprite.Modulate=new Color(0.65f,0.65f,0.65f);
             }
         }
         QueueRedraw();
-        if(Position.Y < -650) Deactivate();
+        if(CaveViewport.PassedTop(this,100)) Deactivate();
     }
     public Vector2 Muzzle=>GlobalPosition+new Vector2(-_side*54,0);
+    public Vector2 AimVelocity(Vector2 target)
+    {
+        Vector2 delta=target-Muzzle;
+        float angle=Mathf.Clamp(Mathf.Atan2(Mathf.Max(0,-delta.Y),Mathf.Abs(delta.X)),Mathf.DegToRad(60),Mathf.DegToRad(70));
+        return new Vector2(-_side*Mathf.Cos(angle),-Mathf.Sin(angle))*520;
+    }
     public override void _Draw()
     {
         if(_fired || _level==null) return;
-        Color color=_variant==0 ? new Color("8ce5e8") : new Color("ffb05b");
+        Color color=_variant==1 ? new Color("ffb05b") : new Color("8ce5e8");
         color.A=0.22f;
-        Vector2 origin=ToLocal(Muzzle), end=ToLocal(_target);
+        Vector2 velocity=AimVelocity(_target)-new Vector2(0,_level.FallSpeed);
+        float impact=Mathf.Max(0,(_target.Y-Muzzle.Y)/Mathf.Min(-1,velocity.Y));
+        Vector2 origin=ToLocal(Muzzle), end=ToLocal(Muzzle+velocity*impact);
         DrawDashedLine(origin,end,color,2,14,true);
         color.A=0.7f;
         DrawArc(end,18,0,Mathf.Tau,24,color,2,true);

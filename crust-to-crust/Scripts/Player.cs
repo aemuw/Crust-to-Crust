@@ -57,6 +57,8 @@ public partial class Player : CharacterBody2D
     private Sprite2D _shieldSprite;
     private float _doubleCoinsTimer, _magnetTimer, _visualKick, _thermalUiTimer, _shakeStrength;
     private bool _lampWanted = true;
+    private readonly LanternCharge _charge=new();
+    public float LanternSeconds=>_charge.Seconds;
     private bool _aimWithPad;
     private Vector2 _padAim = Vector2.Down;
     private int _waterExtinguishes;
@@ -151,7 +153,7 @@ public partial class Player : CharacterBody2D
         if (_state != State.Playing || GetTree().Paused) return;
         if (input.IsActionPressed(InputSetup.ToggleLantern) && !input.IsEcho())
         {
-            _lampWanted = !_lampWanted; _lantern.Enabled = _lampWanted;
+            _lampWanted = !_lampWanted; _lantern.Enabled = _lampWanted && _charge.Seconds>0;
             _hud?.NotifyTutorialLight();
             GetViewport().SetInputAsHandled();
         }
@@ -280,6 +282,9 @@ public partial class Player : CharacterBody2D
 	public override void _Process(double delta)
 	{
 		float dt = (float)delta;
+        _charge.Tick(dt,_state==State.Playing && _levelGenerator?.IsGameActive==true && _lampWanted && !(_hud?.TutorialActive??false));
+        if(_lantern!=null) _lantern.Enabled=_state==State.Playing && _lampWanted && _charge.Seconds>0;
+        _hud?.SetLanternCharge(_charge.Seconds,_charge.Capacity,_lampWanted);
         UpdateLantern(dt);
         if (_wind != null) { _wind.GlobalPosition = Vector2.Zero; _wind.GlobalRotation = 0f; }
         _wind?.SetMotion(_levelGenerator?.FallSpeed ?? 0f, _currentVelocityX, _state == State.Playing);
@@ -641,6 +646,7 @@ public partial class Player : CharacterBody2D
             if (pickup.Kind == PickupKind.Shield) GrantShield();
             else if (pickup.Kind == PickupKind.DoubleCoins) _doubleCoinsTimer = 18f;
             else if (pickup.Kind == PickupKind.Magnet) _magnetTimer = 14f;
+            else if (pickup.Kind == PickupKind.Battery) _charge.Refill();
             _visualKick = 0.12f;
             PlaySfx(_coinSfx,1.35f,1.55f);
         }

@@ -91,7 +91,7 @@ public partial class Water : Area2D
 	{
 		Position += new Vector2(0f, -speed * (float)delta);
         AlignToWall();
-		if (Position.Y < -1050f)
+		if (CaveViewport.PassedTop(this,HalfHeight+100))
 		{
 			SetDeferred("monitorable", false);
 			Visible = false;

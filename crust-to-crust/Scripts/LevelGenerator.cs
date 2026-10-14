@@ -15,11 +15,11 @@ public partial class LevelGenerator : Node2D
 	[Export] private PackedScene waterScene;
 	[Export] private PackedScene coinScene;
 
-	[Export] public int ObstaclePoolSize = 10;
+	[Export] public int ObstaclePoolSize = 16;
 	[Export] public int WaterPoolSize = 5;
 	[Export] public int CoinPoolSize = 24;
 
-	[Export] private float obstacleInterval = 2.6f;
+	[Export] private float obstacleInterval = 2.1f;
 
 	[Export] public float FallSpeed = 340f;
 	[Export] public float CoreDepthPoint = 20000f;   // відстань до ядра
@@ -58,6 +58,18 @@ public partial class LevelGenerator : Node2D
     private int _encounterIndex = -1, _encounterSide;
     private float _encounterEndDistance;
     public float SafeLaneAt(float y) => Director.LaneAt(_routeDistance+y/_routeScale);
+    public bool CanHazardTraverse(int side,float startY,float radius,float scroll)
+    {
+        float travel=Mathf.Max(0,startY-CaveViewport.WorldTop(this)+radius+96);
+        int steps=Mathf.Clamp(Mathf.CeilToInt(travel/48),2,160);
+        for(int i=0;i<=steps;i++)
+        {
+            float y=startY+travel*i/steps*(1-scroll)/scroll;
+            GetRockBounds(y,out float left,out float right);
+            if(!SafePassage.TryBounds(side,SafeLaneAt(y),radius+6,left,right,out _,out _,_player?.CollisionEnvelopeRadius??SafePassage.PlayerRadius)) return false;
+        }
+        return true;
+    }
     public void SetRunSeed(int seed)
     {
         if (IsGameActive) return;
@@ -92,6 +104,9 @@ public partial class LevelGenerator : Node2D
     private readonly List<WallShooter> _shooters=new();
     private readonly List<HazardProjectile> _projectiles=new();
     private float _shooterCooldown=18f;
+    private float _batteryTimer, _nextBatteryDelay=10f, _cascadeTimer;
+    private int _cascadeRemaining;
+    public int BatteriesSpawned { get; private set; }
     public bool ProjectilesAllowed=>IsGameActive && _coreRespite<=0f && !(_hud?.TutorialActive??false) && Encounter!=EncounterKind.WaterApproach;
 
 	private float obstacleTimer;
@@ -135,7 +150,7 @@ public partial class LevelGenerator : Node2D
 	/// <summary>Сумарна пройдена відстань з усіх кіл.</summary>
 	public float TotalDistance => (Lap - 1) * TunnelLength + CurrentDepth;
 	public float Difficulty => Mathf.Clamp(ActivePlaySeconds / DifficultyRampSeconds, 0f, 1f);
-	public float CurrentObstacleInterval => Mathf.Lerp(obstacleInterval, 1.25f, Difficulty);
+	public float CurrentObstacleInterval => Mathf.Lerp(obstacleInterval, 0.85f, Difficulty);
 
     public override void _ExitTree() { SaveData.Save(); }
 
@@ -384,7 +399,8 @@ public partial class LevelGenerator : Node2D
         {
             _coreLap = Lap; _coreRespite = 2f;
             ClearShooters();
-            DeactivateAllPoolObjects(obstaclePool);
+            foreach(Node2D item in obstaclePool)
+                if(item.Visible && item is Obstacle obstacle) obstacle.RetireForClearance();
             _hud?.AnnounceCore(); _audio?.PlayCoreAccent();
             SaveData.UnlockMastery(0); EmitSignal(SignalName.CoreCrossed);
         }
@@ -456,6 +472,20 @@ public partial class LevelGenerator : Node2D
 	private void SpawnTimers(float dt)
 	{
         _shooterCooldown-=dt;
+        if(!(_hud?.TutorialActive??false))
+        {
+            _batteryTimer+=dt;
+            if(_batteryTimer>=_nextBatteryDelay)
+            {
+                _batteryTimer=0; _nextBatteryDelay=Director.NextFloat(12,16);
+                float side=(_player?.Position.X??0)>=0 ? -1 : 1;
+                float x=Mathf.Clamp(SafeLaneAt(1100)+side*Director.NextFloat(72,105),-175,175);
+                if(Mathf.Abs(x-(_player?.Position.X??0))<60) x=Mathf.Clamp((_player?.Position.X??0)+side*90,-175,175);
+                float travel=Mathf.Abs(x-(_player?.Position.X??0))/Mathf.Max(1,_player?.HorizontalSpeed??380);
+                float y=Mathf.Max(1100,(_player?.FixedY??-200)+FallSpeed*(travel+0.9f));
+                SpawnFromPool(coinScene,coinPool,PickupKind.Battery,new Vector2(x,y));
+            }
+        }
         if (TutorialWaterPending && !_tutorialWaterSpawned)
         { SpawnFromPool(waterScene,waterPool); _tutorialWaterSpawned = true; waterTimer = 0f; }
         while (TotalDistance >= _encounterEndDistance)
@@ -469,20 +499,34 @@ public partial class LevelGenerator : Node2D
         _bonusCooldownTimer = Mathf.Max(0,_bonusCooldownTimer-dt);
 
 		obstacleTimer += dt;
+        if(_cascadeRemaining>0)
+        {
+            _cascadeTimer-=dt;
+            if(_cascadeTimer<=0)
+            {
+                if(_coreRespite<=0 && !(_hud?.TutorialActive??false) && Encounter==EncounterKind.Cascade) SpawnFromPool(obstacleScene,obstaclePool);
+                _cascadeRemaining--; _cascadeTimer=0.55f;
+                if(_cascadeRemaining==0) obstacleTimer=0;
+            }
+        }
 		if (obstacleTimer >= (_nextObstacleDelay > 0f ? _nextObstacleDelay : CurrentObstacleInterval))
 		{
 			obstacleTimer = 0f;
             _nextObstacleDelay = CurrentObstacleInterval*Director.NextFloat(0.78f,1.24f);
-			if (Encounter != EncounterKind.Rest && Encounter != EncounterKind.WaterApproach && Encounter != EncounterKind.Sentry && !(_hud?.TutorialActive ?? false) && _coreRespite <= 0f)
+			if (_cascadeRemaining==0 && Encounter != EncounterKind.Rest && Encounter != EncounterKind.WaterApproach && Encounter != EncounterKind.Sentry && !(_hud?.TutorialActive ?? false) && _coreRespite <= 0f)
+            {
                 SpawnFromPool(obstacleScene, obstaclePool);
+                if(Encounter==EncounterKind.Cascade) { _cascadeRemaining=2; _cascadeTimer=0.55f; }
+            }
 		}
         if(_shooterCooldown<=0 && ActivePlaySeconds>=18 && ProjectilesAllowed && Encounter!=EncounterKind.Rest)
         {
             // Sample intent before pool lookup or water suppression so capacity cannot shift RNG.
             int side=Director.NextInt(0,2)==0 ? -1 : 1;
-            int variant=Zone is CaveZone.Magma or CaveZone.Core ? 1 : 0;
-            _shooterCooldown=Director.NextFloat(7f,11f);
-            float y=(_player?.FixedY??-200)+FallSpeed*(WallShooter.WarningSeconds+0.36f);
+            float variantRoll=Director.NextFloat(0,1);
+            int variant=Zone is CaveZone.Magma or CaveZone.Core ? 1 : Zone==CaveZone.Crystal && variantRoll<0.6f ? 2 : 0;
+            _shooterCooldown=Director.NextFloat(5.5f,8.5f);
+            float y=(_player?.FixedY??-200)+WallShooter.PreferredFireGap+FallSpeed*WallShooter.WarningSeconds;
             if(!IsWaterInZone(y,FallSpeed*1.8f) && !IsWaterInZone(-200,Water.HalfHeight+120))
                 foreach(var shooter in _shooters)
                     if(!shooter.Visible) { shooter.Activate(this,variant,side,y); break; }
@@ -607,7 +651,7 @@ public partial class LevelGenerator : Node2D
         foreach (Water water in _visibleWaters)
             foreach (Node2D item in obstaclePool)
                 if (item.Visible && Approaching(water,item.GlobalPosition.Y))
-                { if (item is Area2D hazard) hazard.SetDeferred("monitorable",false); item.Hide(); item.ProcessMode = ProcessModeEnum.Disabled; }
+                { if(item is Obstacle obstacle) obstacle.RetireForClearance(); }
         foreach (var block in _wallBlocks)
         {
             bool covered = false;
@@ -616,8 +660,10 @@ public partial class LevelGenerator : Node2D
                 if (water.FromLeft == block.left && (Mathf.Abs(y-water.GlobalPosition.Y) < Water.HalfHeight+150f || Approaching(water,y)))
                 { covered = true; break; }
             bool clear = _tunnelHazardsVisible && !covered && !CrossesEscapeRoute(block.area);
-            Monitor(block.area,clear && collisionsAllowed);
-            if (block.art.Visible != clear) block.art.Visible = clear;
+            float wallAlpha=_tunnelHazardsVisible ? Mathf.MoveToward(block.art.Modulate.A,clear ? 1 : 0,dt*2.5f) : 0;
+            block.art.Modulate=new Color(1,1,1,wallAlpha);
+            block.art.Visible=wallAlpha>0.01f;
+            Monitor(block.area,clear && collisionsAllowed && wallAlpha>0.95f);
         }
         for (int i = 0; i < _tunnelCrystals.Count; i++)
         {
@@ -626,18 +672,15 @@ public partial class LevelGenerator : Node2D
             foreach (Area2D area in _crystalColliders[i]) if (CrossesEscapeRoute(area)) { clear = false; break; }
             float density = Zone == CaveZone.Basalt ? (i%3 == 0 ? 1f : 0f)
                 : Zone == CaveZone.Crystal ? 1f : Zone == CaveZone.Magma ? (i%3 != 1 ? 1f : 0f) : (i%2 == 0 ? 1f : 0f);
-            float alpha = 1f;
-            if (_crystalZoneAlpha != null)
-            {
-                _crystalZoneAlpha[i] = Mathf.MoveToward(_crystalZoneAlpha[i],density,dt*1.5f);
-                alpha = _crystalZoneAlpha[i]; crystal.Modulate = new Color(1,1,1,alpha);
-            }
             foreach (Water water in _visibleWaters)
                 if ((Mathf.Abs(crystal.GlobalPosition.Y-water.GlobalPosition.Y) < Water.HalfHeight+170f &&
                     Mathf.Abs(crystal.GlobalPosition.X-water.StreamCenter.X) < 140f) ||
                     ((crystal.GlobalPosition.X < 0) == water.FromLeft && Approaching(water,crystal.GlobalPosition.Y)))
                 { clear = false; break; }
-            if (crystal.Visible != (clear && alpha > 0.01f)) crystal.Visible = clear && alpha > 0.01f;
+            float alpha=_tunnelHazardsVisible ? Mathf.MoveToward(_crystalZoneAlpha[i],clear ? density : 0,dt*1.5f) : 0;
+            _crystalZoneAlpha[i]=alpha;
+            crystal.Modulate=new Color(1,1,1,alpha);
+            crystal.Visible=alpha>0.01f;
             foreach (Area2D area in _crystalColliders[i]) Monitor(area,clear && collisionsAllowed && alpha > 0.95f);
         }
     }
@@ -688,9 +731,9 @@ public partial class LevelGenerator : Node2D
         {
             var light = CrystalLights[i];
             if (light.Enabled != _selectedLights[i]) light.Enabled = _selectedLights[i];
-            if (_selectedLights[i]) { light.Color = lightColor; light.Energy = Mathf.Lerp(0.78f,1.05f,_zoneBlend)+VisualWarmth*0.08f; }
+            if (_selectedLights[i]) { light.Color = lightColor; light.Energy = Mathf.Lerp(0.18f,0.30f,_zoneBlend)+VisualWarmth*0.03f; }
         }
-        if (CaveAmbient != null) CaveAmbient.Color = new Color(0.075f,0.095f,0.13f).Lerp(new Color(0.20f,0.055f,0.025f),VisualWarmth);
+        if (CaveAmbient != null) CaveAmbient.Color = new Color(0.03f,0.045f,0.065f).Lerp(new Color(0.085f,0.027f,0.014f),VisualWarmth);
     }
     private void UpdateWallColors()
     {
@@ -719,15 +762,17 @@ public partial class LevelGenerator : Node2D
     public bool TryFireVolley(WallShooter shooter,int variant,Vector2 target)
     {
         if(!ProjectilesAllowed || _player==null || IsWaterInZone(_player.FixedY,Water.HalfHeight+140)) return false;
+        float gap=shooter.GlobalPosition.Y-_player.GlobalPosition.Y;
+        if(gap<WallShooter.MinimumFireGap || gap>WallShooter.MaximumFireGap) return false;
         int count=variant==0 ? 1 : 3, free=0;
         foreach(var shot in _projectiles) if(!shot.Visible) free++;
         if(free<count) return false;
         var paths=new List<ProjectilePath>();
         foreach(var shot in _projectiles) if(shot.Visible) paths.Add(shot.Path);
         int existing=paths.Count;
-        Vector2 direction=(target-shooter.Muzzle).Normalized();
+        Vector2 velocity=shooter.AimVelocity(target);
         for(int i=0;i<count;i++)
-            paths.Add(new ProjectilePath(shooter.Muzzle,direction.Rotated(count==1 ? 0 : (i-1)*Mathf.DegToRad(22))*480f));
+            paths.Add(new ProjectilePath(shooter.Muzzle,velocity.Rotated(count==1 ? 0 : (i-1)*Mathf.DegToRad(variant==2 ? 12 : 10))));
         var solids=new List<Rect2>();
         foreach(var area in _hazardAreas)
         {
@@ -842,7 +887,7 @@ public partial class LevelGenerator : Node2D
 			{
 				obj.Position = spawnPosition;
                 obs.ConfigureVariant(variant,_player?.Position.X ?? 0f,motion);
-                if (!obs.ProtectPassage(side,scaleVariation)) return;
+                if (!obs.ProtectPassage(side,scaleVariation) && !obs.ProtectPassage(-side,scaleVariation)) return;
                 spawnPosition = obs.Position;
 				obs.MotionDifficulty = Difficulty;
 				obs.TriggerAppear(targetScale);
@@ -865,5 +910,6 @@ public partial class LevelGenerator : Node2D
 		if (obj is Obstacle movingRock) movingRock.speed = FallSpeed;
         else if (obj is Water movingWater) movingWater.speed = FallSpeed;
         else if (obj is Coin movingCoin) movingCoin.speed = FallSpeed;
+        if(scene==coinScene && pickupKind==PickupKind.Battery) BatteriesSpawned++;
 	}
 }

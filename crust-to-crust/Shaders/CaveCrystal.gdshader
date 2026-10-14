@@ -12,5 +12,6 @@ void fragment() {
     vec3 amber = vec3(max(crystal.r,crystal.b)*1.14, crystal.g*0.60, crystal.r*0.32);
     vec3 art = mix(crystal.rgb, amber, warmth * vein);
     float pulse = mix(0.85,1.08,zone_glow) + flash_intensity * 0.035 * sin(clock * 1.7);
-    COLOR = vec4(art * pulse, crystal.a) * instance_tint;
+    // Weak mineral veins remain orienting cues, rather than lighting the whole tunnel.
+    COLOR = vec4(art * pulse * (0.10 + vein * 0.24), crystal.a) * instance_tint;
 }

@@ -93,7 +93,9 @@ public partial class CaveSmoke : Node
             // on the opposite wall so the generator deliberately keeps this block solid.
             for(int seed=1;seed<100 && level.SafeLaneAt(player.FixedY)>-60;seed++) level.SetRunSeed(seed);
             hitbox.Monitoring = false;
-            await Wait(0.15f);
+            player.Position=new Vector2(0,player.FixedY);
+            // A restored wall becomes lethal once its fade-in finishes.
+            await Wait(0.6f);
             player.Position = new Vector2(220, player.FixedY);
             hitbox.Monitoring = true;
             await Wait(1.2f);

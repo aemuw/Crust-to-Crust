@@ -1,6 +1,6 @@
 using Godot;
 
-public enum PickupKind { Coin, Shield, DoubleCoins, Magnet }
+public enum PickupKind { Coin, Shield, DoubleCoins, Magnet, Battery }
 
 public partial class Coin : Area2D
 {
@@ -8,6 +8,7 @@ public partial class Coin : Area2D
     public PickupKind Kind { get; private set; }
     private AnimatedSprite2D _coin;
     private Sprite2D _rune;
+    private Sprite2D _battery;
     private Label _badge;
     private LevelGenerator _level;
     private Vector2 _baseScale;
@@ -20,6 +21,8 @@ public partial class Coin : Area2D
         if (_coin != null) { _coin.SpriteFrames = GameAssets.CoinFrames; _baseScale = Vector2.One*40f/_coin.SpriteFrames.GetFrameTexture("Spin",0).GetWidth(); _coin.Scale = _baseScale; _coin.Material = GameAssets.Unshaded; _coin.Play("Spin"); }
         _rune = new Sprite2D { Texture = GameAssets.Shield,Scale = Vector2.One*70f/GameAssets.Shield.GetWidth(),Material = GameAssets.Unshaded };
         AddChild(_rune);
+        _battery=new Sprite2D { Texture=GameAssets.Battery,Scale=Vector2.One*52f/GameAssets.Battery.GetHeight(),Material=GameAssets.Unshaded };
+        AddChild(_battery);
         _badge = new Label { Position = new Vector2(-29,-18),Size = new Vector2(58,36),HorizontalAlignment = HorizontalAlignment.Center,
             MouseFilter = Control.MouseFilterEnum.Ignore,Material = GameAssets.Unshaded };
         _badge.AddThemeFontSizeOverride("font_size",24); _badge.AddThemeColorOverride("font_color",Colors.White); AddChild(_badge);
@@ -31,7 +34,9 @@ public partial class Coin : Area2D
         if (_coin == null) return;
         _coin.Visible = kind == PickupKind.Coin;
         _coin.Scale = _baseScale;
-        _rune.Visible = kind != PickupKind.Coin; _badge.Visible = kind != PickupKind.Coin;
+        _rune.Visible = kind != PickupKind.Coin && kind != PickupKind.Battery;
+        _badge.Visible = _rune.Visible;
+        _battery.Visible=kind==PickupKind.Battery;
         _rune.Material = GameAssets.RuneStyles[kind == PickupKind.DoubleCoins ? 1 : kind == PickupKind.Magnet ? 2 : 0];
         _badge.Text = kind == PickupKind.DoubleCoins ? "×2" : kind == PickupKind.Magnet ? "M" : "◆";
         if (kind == PickupKind.Shield) AddToGroup("Shield"); else if (IsInGroup("Shield")) RemoveFromGroup("Shield");
@@ -48,7 +53,12 @@ public partial class Coin : Area2D
         Player runner = _level?.Runner;
         if (Kind == PickupKind.Coin && runner != null && runner.MagnetActive && Position.DistanceSquaredTo(runner.Position)<220f*220f)
             Position = Position.MoveToward(runner.Position,650f*dt);
-        if (Kind != PickupKind.Coin)
+        if(Kind==PickupKind.Battery)
+        {
+            _battery.Rotation=Mathf.Sin(_clock*1.9f)*0.12f;
+            _battery.Scale=Vector2.One*(52f/GameAssets.Battery.GetHeight())*(1f+0.03f*Mathf.Sin(_clock*3));
+        }
+        else if (Kind != PickupKind.Coin)
         {
             _rune.Rotation = Mathf.Sin(_clock*1.6f)*0.18f;
             _rune.Scale = Vector2.One*(70f/GameAssets.Shield.GetWidth())*(1f+Mathf.Sin(_clock*3f)*0.045f);
@@ -59,6 +69,6 @@ public partial class Coin : Area2D
             float ease = 1+2.70158f*Mathf.Pow(t-1,3)+1.70158f*Mathf.Pow(t-1,2);
             Scale = Vector2.One*Mathf.Clamp(ease,0,1.2f); Modulate = new Color(1,1,1,t);
         }
-        if (Position.Y < -560f) { SetDeferred("monitorable",false); Hide(); ProcessMode = ProcessModeEnum.Disabled; }
+        if (CaveViewport.PassedTop(this,40)) { SetDeferred("monitorable",false); Hide(); ProcessMode = ProcessModeEnum.Disabled; }
     }
 }

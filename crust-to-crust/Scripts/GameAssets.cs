@@ -12,7 +12,8 @@ public static class GameAssets
     public static SpriteFrames CoinFrames;
     public static ShaderMaterial CoolantMaterial;
     public static readonly Texture2D[] HazardTextures = new Texture2D[6];
-    public static readonly Texture2D[] ShooterTextures = new Texture2D[2];
+    public static readonly Texture2D[] ShooterTextures = new Texture2D[3];
+    public static Texture2D Battery;
     public static readonly CanvasItemMaterial Unshaded = new CanvasItemMaterial { LightMode = CanvasItemMaterial.LightModeEnum.Unshaded };
     public static void Load()
     {
@@ -33,6 +34,8 @@ public static class GameAssets
         for(int i=0;i<6;i++) HazardSilhouettes.Outline(i);
         ShooterTextures[0]=GD.Load<Texture2D>("res://Textures/ArtRefresh/shooter_drill.png");
         ShooterTextures[1]=GD.Load<Texture2D>("res://Textures/ArtRefresh/shooter_shell.png");
+        ShooterTextures[2]=GD.Load<Texture2D>("res://Textures/ArtRefresh/unstable_geode.png");
+        Battery=GD.Load<Texture2D>("res://Textures/ArtRefresh/battery_cell.png");
         WaterFrames = new SpriteFrames(); WaterFrames.RemoveAnimation("default");
         WaterFrames.AddAnimation("flow"); WaterFrames.AddFrame("flow",Waterfall);
         Coolant = GD.Load<Texture2D>("res://Textures/ArtRefresh/thermal_capsule.png");

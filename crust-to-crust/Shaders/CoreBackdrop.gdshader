@@ -7,7 +7,7 @@ varying vec2 cave_position;
 void vertex() { cave_position = VERTEX; }
 void fragment() {
     vec2 uv = abs(fract((cave_position + texture_origin) / texture_period * 0.5) * 2.0 - 1.0);
-    vec3 cold = texture(TEXTURE,uv).rgb * vec3(0.35,0.42,0.55);
-    vec3 hot = texture(hot_texture,uv).rgb * vec3(0.68,0.32,0.15);
+    vec3 cold = texture(TEXTURE,uv).rgb * vec3(0.18,0.23,0.30);
+    vec3 hot = texture(hot_texture,uv).rgb * vec3(0.32,0.14,0.065);
     COLOR = vec4(mix(cold,hot,pow(warmth,1.4)),1.0);
 }
