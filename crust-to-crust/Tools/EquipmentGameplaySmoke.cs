@@ -34,9 +34,9 @@ public partial class EquipmentGameplaySmoke : Node
             typeof(Player).GetField("_coolingGrace",Hidden).SetValue(player,0f);
             typeof(Player).GetField("_temperature",Hidden).SetValue(player,0f);
             typeof(Player).GetMethod("UpdateHeating",Hidden).Invoke(player,new object[] {1f});
-            Check(Mathf.IsEqualApprox(player.Temperature,0.165f*0.64f),"bought insulation reduces actual heating by thirty-six percent");
+            Check(Mathf.IsEqualApprox(player.Temperature,0.09f*0.64f),"bought insulation reduces actual heating by thirty-six percent");
             typeof(Player).GetMethod("Extinguish",Hidden).Invoke(player,new object[] {true});
-            Check(Mathf.IsEqualApprox((float)Field(player,"_coolingGrace"),13),"bought cooling gives thirteen seconds after water");
+            Check(Mathf.IsEqualApprox((float)Field(player,"_coolingGrace"),13),"bought cooling gives thirteen seconds after cryogas");
             Coin Pickup(PickupKind kind,Vector2 at)
             {
                 var p=GD.Load<PackedScene>("res://Scenes/Obstacles/Coin.tscn").Instantiate<Coin>(); level.AddChild(p); p.Position=at; p.speed=0; p.SetKind(kind); p.Show(); p.SetProcess(false); return p;

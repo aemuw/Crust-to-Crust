@@ -4,13 +4,9 @@ using Godot;
 public static class GameAssets
 {
     private static bool _loaded;
-    public static SpriteFrames WaterFrames;
-    public static ShaderMaterial WaterMaterial;
     public static readonly ShaderMaterial[] RuneStyles = new ShaderMaterial[3];
-    public static Texture2D Crystal, Waterfall, Shield, Wheel, Halo, Beam, HotRock, Core, Coolant;
-    public static SpriteFrames CoolantFrames;
+    public static Texture2D Crystal, Shield, Wheel, Halo, Beam, HotRock, Core;
     public static SpriteFrames CoinFrames;
-    public static ShaderMaterial CoolantMaterial;
     public static readonly Texture2D[] HazardTextures = new Texture2D[6];
     public static readonly Texture2D[] ShooterTextures = new Texture2D[3];
     public static Texture2D Battery;
@@ -20,7 +16,6 @@ public static class GameAssets
         if (_loaded) return;
         _loaded = true;
         Crystal = GD.Load<Texture2D>("res://Textures/ArtRefresh/crystal_cyan.png");
-        Waterfall = GD.Load<Texture2D>("res://Textures/ArtRefresh/waterfall.png");
         Shield = GD.Load<Texture2D>("res://Textures/ArtRefresh/shield_obsidian.png");
         Wheel = GD.Load<Texture2D>("res://Textures/ArtRefresh/magma_wheel.png");
         Halo = GD.Load<Texture2D>("res://Textures/ArtRefresh/light_halo.png");
@@ -36,14 +31,6 @@ public static class GameAssets
         ShooterTextures[1]=GD.Load<Texture2D>("res://Textures/ArtRefresh/shooter_shell.png");
         ShooterTextures[2]=GD.Load<Texture2D>("res://Textures/ArtRefresh/unstable_geode.png");
         Battery=GD.Load<Texture2D>("res://Textures/ArtRefresh/battery_cell.png");
-        WaterFrames = new SpriteFrames(); WaterFrames.RemoveAnimation("default");
-        WaterFrames.AddAnimation("flow"); WaterFrames.AddFrame("flow",Waterfall);
-        Coolant = GD.Load<Texture2D>("res://Textures/ArtRefresh/thermal_capsule.png");
-        CoolantFrames = new SpriteFrames(); CoolantFrames.RemoveAnimation("default");
-        CoolantFrames.AddAnimation("flow"); CoolantFrames.AddFrame("flow",Coolant);
-        WaterMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://Shaders/WaterfallV4.gdshader") };
-        CoolantMaterial = new ShaderMaterial { Shader = WaterMaterial.Shader };
-        CoolantMaterial.SetShaderParameter("powder_mode",true);
         CoinFrames = new SpriteFrames(); CoinFrames.RemoveAnimation("default"); CoinFrames.AddAnimation("Spin");
         foreach (int frame in new[] {1,2,3,2}) CoinFrames.AddFrame("Spin",GD.Load<Texture2D>($"res://Textures/ArtRefresh/Gold_{frame}.png"));
         CoinFrames.SetAnimationSpeed("Spin",9);

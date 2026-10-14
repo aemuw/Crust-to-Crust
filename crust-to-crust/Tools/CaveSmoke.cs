@@ -65,7 +65,7 @@ public partial class CaveSmoke : Node
             {
                 hitbox.Monitoring = false;
                 for (int attempts = 0; water.FromLeft != left && attempts < 100; attempts++) water.GenerateRandomCaveGeometry();
-                Check(water.FromLeft == left, "waterfall selects the requested side for the test");
+                Check(water.FromLeft == left, "cryo fissure selects the requested side for the test");
                 int segmentIndex = 0;
                 foreach (Node child in segments.GetChildren())
                     if (child is Node2D segment) segment.Position = new Vector2(0, player.FixedY - (left ? 278f : 505f) + (segmentIndex++ - 2) * 720);
@@ -78,13 +78,13 @@ public partial class CaveSmoke : Node
                 Input.ParseInputEvent(new InputEventKey { Keycode = left ? Key.A : Key.D, PhysicalKeycode = left ? Key.A : Key.D, Pressed = false });
                 await Wait(0.2f);
                 Check(player.GetNode<Sprite2D>("CharacterSprite").Visible && !GetTree().Paused,
-                    (left ? "left" : "right") + $" waterfall can be entered with a lethal wall directly behind it (position={player.Position}, alive={player.GetNode<Sprite2D>("CharacterSprite").Visible}, paused={GetTree().Paused})");
-                Check(Mathf.Abs(player.Position.X - water.StreamCenter.X) <= 38f, "water approach follows the wall-anchored stream");
-                Check(!player.GetNode<CpuParticles2D>("FireParticles").Emitting, "entering the waterfall extinguishes the player");
+                    (left ? "left" : "right") + $" cryo fissure can be entered with a lethal wall directly behind it (position={player.Position}, alive={player.GetNode<Sprite2D>("CharacterSprite").Visible}, paused={GetTree().Paused})");
+                Check(Mathf.Abs(player.Position.X - water.ToGlobal(water.SourcePosition).X) <= water.StreamReach, "cooling approach reaches the wall-anchored stream");
+                Check(!player.GetNode<CpuParticles2D>("FireParticles").Emitting, "entering the cryo fissure extinguishes the player");
                 await Wait(7.3f);
-                Check(!player.GetNode<CpuParticles2D>("FireParticles").Emitting, "the player stays cool while remaining in water");
+                Check(!player.GetNode<CpuParticles2D>("FireParticles").Emitting, "the player stays cool while remaining in cold gas");
                 level.GetNode<Camera2D>("Camera2D").Position = new Vector2(0, water.Position.Y);
-                await Capture(left ? "waterfall-left-safe-entry" : "waterfall-right-safe-entry");
+                await Capture(left ? "cryo fissure-left-safe-entry" : "cryo fissure-right-safe-entry");
             }
             water.Visible = false;
             water.Monitorable = false;
@@ -100,7 +100,7 @@ public partial class CaveSmoke : Node
             hitbox.Monitoring = true;
             await Wait(1.2f);
             Check(GetTree().Paused && hud.GetNode<Control>("Control/GameOverPanel").Visible,
-                $"ordinary wall collisions remain lethal outside the waterfall approach (position={player.Position}, scale={player.Scale}, alive={player.GetNode<Sprite2D>("CharacterSprite").Visible}, paused={GetTree().Paused}, overlaps={hitbox.GetOverlappingAreas().Count})");
+                $"ordinary wall collisions remain lethal outside the cryo fissure approach (position={player.Position}, scale={player.Scale}, alive={player.GetNode<Sprite2D>("CharacterSprite").Visible}, paused={GetTree().Paused}, overlaps={hitbox.GetOverlappingAreas().Count})");
             GD.Print("CAVE SMOKE PASSED");
             level.Free();
             await Wait(0.15f);

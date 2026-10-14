@@ -505,7 +505,7 @@ void fragment() {
     public void SetThermalStatus(float temperature, bool burning, float seconds, float cooling)
     {
         SetHeat(temperature,burning); _heatLabel.Visible = temperature > 0.02f || cooling > 0f;
-        _heatLabel.Text = cooling > 0 ? $"ОХОЛОДЖЕНО  {cooling:0.0}с" : burning ? $"ГОРІННЯ — ШУКАЙ ОХОЛОДЖЕННЯ!  {seconds:0.0}с" : $"ТЕМПЕРАТУРА  {temperature*100:0}%";
+        _heatLabel.Text = cooling > 0 ? $"ОХОЛОДЖЕНО  {cooling:0.0}с" : $"ПЕРЕГРІВ  {temperature*100:0}%";
         _heatLabel.AddThemeColorOverride("font_color",cooling > 0f ? Aqua : new Color("ffb06d"));
     }
     public void SetLanternCharge(float seconds,float capacity,bool wanted)
@@ -522,7 +522,7 @@ void fragment() {
         _announcementTime = Mathf.Max(0,_announcementTime-(float)delta);
         if (_announcementTime <= 0) _coreBanner.Hide();
         _pulseTime += (float)delta;
-        float target = _finished ? 0 : _burning ? 0.65f + SaveData.FlashIntensity*0.12f*Mathf.Sin(_pulseTime*6f) : _heatLevel*0.35f;
+        float target = _finished ? 0 : _burning ? _heatLevel*(0.55f + SaveData.FlashIntensity*0.12f*Mathf.Sin(_pulseTime*6f)) : _heatLevel*0.35f;
         _vignetteLevel = Mathf.Lerp(_vignetteLevel,target,1f-Mathf.Exp(-(float)delta*4f));
         _vignette?.SetShaderParameter("intensity",_vignetteLevel);
         _uiTicker += (float)delta;
@@ -548,7 +548,7 @@ void fragment() {
         if (_finished) return; _finished = true;
         bool record = SaveData.SubmitRun(_totalDistance,_coins,_lap);
         string reason = cause == DeathCause.Overheat ? "ПЕРЕГРІВ" : "ЗІТКНЕННЯ";
-        string hint = cause == DeathCause.Overheat ? "Вода або термокапсула гасять вогонь."
+        string hint = cause == DeathCause.Overheat ? "Пройди крізь холодний газ біля стіни, щоб знизити перегрів."
             : "Щит поглинає один удар.";
         _gameOverStats.Text = $"{reason}\n\n{Mathf.FloorToInt(_totalDistance):N0} м  ·  {_coins} монет  ·  коло {_lap}\n" + (record ? "Новий рекорд\n" : "") + "\n" + hint;
         _pauseOverlay.Hide(); _pauseButton.Hide(); _heatLabel.Hide(); _heatBar.Hide(); _shieldLabel.Hide(); _hintLabel.Hide(); _bonusLabel.Hide();
@@ -571,7 +571,7 @@ void fragment() {
     {
         _tutorialText.Text = _tutorialStep == 0 ? "1 / 3  Рухайся вбік: A / D, стрілки або лівий стік."
             : _tutorialStep == 1 ? "2 / 3  Наведи світло мишкою чи правим стіком. ЛКМ / Y перемикає ліхтар."
-            : "3 / 3  Увійди в блакитний струмінь. Вода охолоджує та гасить вогонь.";
+            : "3 / 3  Підійди до кріотріщини біля стіни й пройди крізь холодний газ.";
     }
     public void NotifyTutorialMove() { if (_tutorialActive && _tutorialStep == 0) { _tutorialStep = 1; UpdateTutorialText(); } }
     public void NotifyTutorialLight() { if (_tutorialActive && _tutorialStep == 1) { _tutorialStep = 2; UpdateTutorialText(); } }

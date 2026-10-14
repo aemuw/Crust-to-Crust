@@ -11,18 +11,15 @@ public partial class Player : CharacterBody2D
 	[Export] public float FixedY = -200f;
 	[Export] public float MinX = -310f;
 	[Export] public float MaxX = 310f;
-	[Export] public float MinBurnTime = 22f;
-	[Export] public float MaxBurnTime = 26f;
 
 	// Фізичні шари (мають відповідати project.godot -> [layer_names] 2d_physics).
 	private const uint LayerObstacle = 1 << 1; // layer_2
-	private const uint LayerWater = 1 << 2;    // layer_3
 	private const uint LayerCoin = 1 << 3;     // layer_4
 
 	// Зона нагріву (одиниці відстані від ядра).
 	private const float HeatStartDistance = 4500f;
 	
-	private const float WaterCoolingGraceSeconds = 7f;
+	private const float CryoProtectionSeconds = 7f;
 
 	private const float SurfaceY = -450f - 16f;   // поверхня землі зліва над шахтою
 	private const float WallPadding = 34f;        // відступ від стін тунелю
@@ -33,9 +30,7 @@ public partial class Player : CharacterBody2D
 	private float _currentVelocityX;
 
 	private bool _isOnFire;
-	private float _burnTimer;
 	private float _coolingGrace;
-	private float _currentBurnDuration;
     private float _temperature;
     private ColorRect _flameEffect;
     private ShaderMaterial _flameMaterial;
@@ -374,7 +369,7 @@ public partial class Player : CharacterBody2D
         float ratio = Mathf.Clamp((_levelGenerator?.FallSpeed ?? 0f)/980f,0f,1f);
         _characterSprite.Position = new Vector2(Mathf.Sin(_fxClock*2.7f)*ratio*1.6f,
             Mathf.Sin(_fxClock*(2f+ratio*2f))*ratio*4f);
-        float burn = _isOnFire ? Mathf.Clamp(_burnTimer/Mathf.Max(1,_currentBurnDuration),0,1) : 0f;
+        float burn = _temperature;
         float scale = _skinSpriteScale*Mathf.Lerp(1f,0.83f,burn)*(1f+_visualKick);
         float stretch = ratio*0.055f+Mathf.Sin(_fxClock*4.2f)*ratio*0.012f;
         _characterSprite.Scale = new Vector2(scale*(1f-stretch),scale*(1f+stretch));
@@ -465,52 +460,42 @@ public partial class Player : CharacterBody2D
     {
         if (_levelGenerator == null) return;
         _coolingGrace = Mathf.Max(0f, _coolingGrace - dt);
-        bool inWater = false;
+        bool inColdGas = false;
         if (_hitbox != null && _hitbox.Monitoring)
             foreach (Area2D area in _hitbox.GetOverlappingAreas())
-                if (area is Water && area.IsVisibleInTree() && area.Monitorable) { inWater = true; break; }
-        if (inWater)
+                if (area is Water fissure && fissure.IsCoolingActive && fissure.IsVisibleInTree()) { inColdGas = true; break; }
+        if (inColdGas)
         {
             _hud?.NotifyTutorialWater();
-            _coolingGrace = WaterCoolingGraceSeconds + SaveData.Cooling * 2f;
-            _temperature = Mathf.MoveToward(_temperature, 0f, dt * 1.5f);
+            // Contact duration matters: a grazing collision never resets the heat bar.
             if (_isOnFire) Extinguish();
+            _coolingGrace = CryoProtectionSeconds + SaveData.Cooling * 2f;
+            _temperature = Mathf.MoveToward(_temperature, 0f, dt * 2.8f);
         }
         float distance = Mathf.Abs(_levelGenerator.CurrentDepth - _levelGenerator.CoreDepthPoint);
         float ambient = Mathf.Clamp(1f - distance / HeatStartDistance, 0f, 1f);
-        // Thermal inertia, never an instantaneous ignition just from crossing a depth.
-        float rate = _coolingGrace > 0f ? -0.32f : ambient > 0.12f
-            ? (0.045f + 0.12f * ambient) * (1f - SaveData.Insulation * 0.12f) : -0.09f;
+        bool hot = ambient > 0.12f;
+        float rate = inColdGas || hot && _coolingGrace > 0 ? 0f : hot
+            ? (0.035f + 0.055f * ambient) * (1f - SaveData.Insulation * 0.12f) : -0.09f;
         _temperature = Mathf.Clamp(_temperature + rate * dt, 0f, 1f);
-        if (!_isOnFire && _temperature >= 0.999f && _coolingGrace <= 0f) CatchFire();
-        if (_isOnFire)
-        {
-            // Leaving the hot region cools the player and stops further burning.
-            if (_temperature < 0.55f) Extinguish(false);
-            else
-            {
-                _burnTimer += dt;
-                float burn = Mathf.Clamp(_burnTimer / _currentBurnDuration, 0f, 1f);
-                // Only the artwork contracts: the collision hitbox stays consistent.
-                if (_characterSprite != null) _characterSprite.Scale = Vector2.One * _skinSpriteScale * Mathf.Lerp(1f, 0.8f, burn);
-                if (_burnTimer >= _currentBurnDuration) { Die(DeathCause.Overheat); return; }
-            }
-        }
+        if (_temperature >= 1f) { Die(DeathCause.Overheat); return; }
+        if (!_isOnFire && hot && _temperature > 0 && _coolingGrace <= 0) CatchFire();
+        if (_isOnFire && (!hot || _coolingGrace > 0 || _temperature <= 0)) StopFlames();
         if (_characterSprite != null)
             _characterSprite.Modulate = Colors.White.Lerp(new Color(1f, 0.38f, 0.16f), _temperature * 0.8f);
         _flameEffect.Visible = _isOnFire;
         _flameMaterial.SetShaderParameter("clock",_fxClock);
-        _flameMaterial.SetShaderParameter("strength",_isOnFire ? 0.72f + 0.28f*Mathf.Clamp(_burnTimer/_currentBurnDuration,0f,1f) : 0f);
+        _flameMaterial.SetShaderParameter("strength",_isOnFire ? 0.10f + 0.85f*_temperature : 0f);
         _flameMaterial.SetShaderParameter("wind",Mathf.Clamp(-_currentVelocityX/HorizontalSpeed,-1f,1f));
         _flameMaterial.SetShaderParameter("speed",Mathf.Clamp(_levelGenerator.FallSpeed/760f,0f,1f));
-        _fireLight.Energy = _isOnFire ? 1.3f + SaveData.FlashIntensity*0.16f*Mathf.Sin(_fxClock*17f) : _temperature*0.12f;
+        _fireLight.Energy = _isOnFire ? 0.08f + _temperature*(0.65f + SaveData.FlashIntensity*0.06f*Mathf.Sin(_fxClock*17f)) : _temperature*0.08f;
         _flameEffect.Rotation = -GlobalRotation;
         _flameEffect.GlobalPosition = GlobalPosition + new Vector2(-58,-112);
         _thermalUiTimer += dt;
         if (_thermalUiTimer >= 0.10f)
         {
             _thermalUiTimer = 0f;
-            _hud?.SetThermalStatus(_temperature,_isOnFire,Mathf.Max(0,_currentBurnDuration-_burnTimer),_coolingGrace);
+            _hud?.SetThermalStatus(_temperature,_isOnFire,0f,_coolingGrace);
         }
     }
 
@@ -519,35 +504,29 @@ public partial class Player : CharacterBody2D
 		if (_isOnFire || _state == State.Dead) return;
 
 		_isOnFire = true;
-		_burnTimer = 0f;
-		_currentBurnDuration = (MinBurnTime + MaxBurnTime) * 0.5f;
 
 		if (_fireGlow != null) _fireGlow.Visible = false;
 		if (_fireParticles != null) _fireParticles.Emitting = true;
 		if (_smokeParticles != null) _smokeParticles.Emitting = true;
-		if (_characterSprite != null)
-		{
-			var ignitionTween = CreateTween();
-			ignitionTween.TweenProperty(_characterSprite, "scale", Vector2.One * _skinSpriteScale * 1.12f, 0.10f);
-			ignitionTween.TweenProperty(_characterSprite, "scale", Vector2.One * _skinSpriteScale, 0.18f)
-				.SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
-		}
 	}
 
 	private void Extinguish(bool water = true)
 	{
         if (water && _isOnFire && ++_waterExtinguishes >= 3) SaveData.UnlockMastery(2);
-		_coolingGrace = water ? WaterCoolingGraceSeconds + SaveData.Cooling * 2f : 0f;
-        _temperature = Mathf.Min(_temperature, 0.25f);
+		_coolingGrace = water ? CryoProtectionSeconds + SaveData.Cooling * 2f : 0f;
+        if (!water) _temperature = 0f;
+        if (_isOnFire) _waterSfx?.Play();
+        StopFlames();
+    }
+
+    private void StopFlames()
+    {
         if (_flameEffect != null) _flameEffect.Visible = false;
         if (_fireLight != null) _fireLight.Energy = 0f;
 		if (!_isOnFire && Scale == Vector2.One)
 			return;
 
-		_waterSfx?.Play();
-
 		_isOnFire = false;
-		_burnTimer = 0f;
 		Scale = Vector2.One;
 
 		if (_characterSprite != null)
@@ -586,8 +565,8 @@ public partial class Player : CharacterBody2D
 			return;
 		}
 
-		if ((layer & LayerWater) != 0 || area.IsInGroup("Water"))
-        { Extinguish(); _hud?.NotifyTutorialWater(); }
+		// Cooling is applied by actual active-gas overlap over time in UpdateHeating.
+        // An AreaEntered signal by itself must not extinguish the runner.
 	}
 
 	private void HitObstacle()

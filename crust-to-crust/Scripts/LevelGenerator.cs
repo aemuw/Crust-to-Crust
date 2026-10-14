@@ -205,7 +205,8 @@ public partial class LevelGenerator : Node2D
         // Invisible/off-screen nodes would not warm a first-use shader.
         var warmup = new Node2D { Name = "ShaderWarmup",Position = _camera?.Position ?? Vector2.Zero };
         AddChild(warmup);
-        ShaderMaterial[] materials = { GameAssets.WaterMaterial,GameAssets.RuneStyles[0],CrystalMaterials[0],
+        ShaderMaterial[] materials = { new ShaderMaterial { Shader = GD.Load<Shader>("res://Shaders/CryoGas.gdshader") },
+            new ShaderMaterial { Shader = GD.Load<Shader>("res://Shaders/CryoRock.gdshader") },GameAssets.RuneStyles[0],CrystalMaterials[0],
             new ShaderMaterial { Shader = GD.Load<Shader>("res://Shaders/Burning.gdshader") } };
         for (int i = 0; i < materials.Length; i++)
             warmup.AddChild(new Sprite2D { Texture = GameAssets.Crystal,Material = materials[i],
@@ -605,15 +606,6 @@ public partial class LevelGenerator : Node2D
 	{
 		// Візуальне зміщення змінюється лише під час гри, тож у меню рельєф стоїть на місці.
 		GetRockBounds(screenY, out left, out right);
-
-		// Поки кубик у водоспаді, тримаємо його в відкритому струмені, а не в смертельній стіні позаду.
-		foreach (Water water in _waters)
-		{
-			if (!GodotObject.IsInstanceValid(water) || !water.IsVisibleInTree() || !water.Monitorable) continue;
-			if (Mathf.Abs(water.Position.Y - screenY) > Water.HalfHeight + 120f) continue;
-			if (water.FromLeft) left = Mathf.Max(left, water.StreamCenter.X - 58f);
-            else right = Mathf.Min(right, water.StreamCenter.X + 58f);
-		}
 	}
 
 	private void ScrollEditableTunnelSegments(float delta)
@@ -698,8 +690,6 @@ public partial class LevelGenerator : Node2D
     {
         if (GetTree().Paused) return;
         if (IsGameActive) _biomeClock += dt;
-        GameAssets.WaterMaterial.SetShaderParameter("clock",_biomeClock);
-        GameAssets.CoolantMaterial.SetShaderParameter("clock",_biomeClock);
         float approach = Mathf.Clamp(1f-Mathf.Abs(CurrentDepth-CoreDepthPoint)/9000f,0f,1f);
         float target = approach*approach*(3f-2f*approach);
         VisualWarmth = Mathf.Lerp(VisualWarmth,target,1f-Mathf.Exp(-dt*1.2f));
@@ -878,6 +868,7 @@ public partial class LevelGenerator : Node2D
 			if (obj is Water waterNode)
 			{
 				waterNode.UpdateBiomeColors(_currentWallColor, _currentBorderColor);
+				waterNode.Position = spawnPosition;
 				waterNode.GenerateRandomCaveGeometry(waterFromLeft);
 			}
 		}

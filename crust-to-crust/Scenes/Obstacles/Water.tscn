@@ -1,23 +1,6 @@
-[gd_scene load_steps=7 format=3 uid="uid://ccjjaufyefsd1"]
+[gd_scene load_steps=2 format=3 uid="uid://ccjjaufyefsd1"]
 [ext_resource type="Script" path="res://Scripts/Water.cs" id="1"]
-[ext_resource type="Texture2D" path="res://Textures/ArtRefresh/waterfall.png" id="2"]
-[ext_resource type="Shader" path="res://Shaders/WaterfallV4.gdshader" id="3"]
-[sub_resource type="ShaderMaterial" id="WaterStyle"]
-shader = ExtResource("3")
-[sub_resource type="SpriteFrames" id="WaterFrames"]
-animations = [{"frames": [{"duration": 1.0, "texture": ExtResource("2")}], "loop": true, "name": &"flow", "speed": 1.0}]
-[sub_resource type="RectangleShape2D" id="WaterShape"]
-size = Vector2(70, 330)
-[node name="Water" type="Area2D" groups=["Water"]]
+[node name="CryoFissure" type="Area2D" groups=["Cooling"]]
 collision_layer = 4
 collision_mask = 0
 script = ExtResource("1")
-[node name="WaterfallSprite" type="AnimatedSprite2D" parent="."]
-z_index = 3
-material = SubResource("WaterStyle")
-texture_filter = 2
-scale = Vector2(0.2537, 0.2537)
-sprite_frames = SubResource("WaterFrames")
-animation = &"flow"
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("WaterShape")

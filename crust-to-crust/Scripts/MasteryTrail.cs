@@ -3,8 +3,8 @@ using Godot;
 public static class TrailStyle
 {
     public static Color Color(int id)=>new(id==1 ? "ffb556" : id==2 ? "bda5ff" : id==3 ? "79e3d5" : "a6d4e8");
-    public static string Name(int id)=>id==1 ? "Бурштин" : id==2 ? "Кварц" : id==3 ? "Вода" : "Повітря";
-    public static string Requirement(int id)=>id==1 ? "Пройди ядро" : id==2 ? "Пройди планету наскрізь" : id==3 ? "Погаси полум’я водою 3 рази за забіг" : "Доступний від початку";
+    public static string Name(int id)=>id==1 ? "Бурштин" : id==2 ? "Кварц" : id==3 ? "Іній" : "Повітря";
+    public static string Requirement(int id)=>id==1 ? "Пройди ядро" : id==2 ? "Пройди планету наскрізь" : id==3 ? "Погаси полум’я кріогазом 3 рази за забіг" : "Доступний від початку";
 }
 
 /// <summary>Actual runner trail, distinct from the ambient speed streaks.</summary>

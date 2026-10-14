@@ -48,12 +48,12 @@ public partial class JourneySmoke : Node
         await NewRun();
         player = _level.GetNode<Player>("Player");
         Set(player, "_isOnFire", true); Set(player, "_temperature", 1f);
-        Set(player, "_currentBurnDuration", 24f); Set(player, "_burnTimer", 24f);
+        Set(player, "_coolingGrace", 0f);
         _level.CurrentDepth = _level.CoreDepthPoint;
         Call(player, "UpdateHeating", 0.01f);
         await Wait(1f);
         stats = (Label)Get(_level.GetNode<Hud>("HUD"), "_gameOverStats");
-        Check(stats.Text.Contains("ПЕРЕГРІВ") && stats.Text.Contains("Вод"), "overheat defeat explains water recovery");
+        Check(stats.Text.Contains("ПЕРЕГРІВ") && stats.Text.Contains("газ"), "overheat defeat explains cryogas recovery");
 
         await NewRun();
         _level.SetProcess(false); player = _level.GetNode<Player>("Player"); player.SetProcess(false);
