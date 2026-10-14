@@ -1,5 +1,7 @@
 using Godot;
 
+public enum DeathCause { Collision, Overheat }
+
 public partial class Player : CharacterBody2D
 {
 	private enum State { Menu, Intro, Playing, Emerging, Dead }
@@ -51,6 +53,9 @@ public partial class Player : CharacterBody2D
     private Sprite2D _shieldSprite;
     private float _doubleCoinsTimer, _magnetTimer, _visualKick, _thermalUiTimer, _shakeStrength;
     private bool _lampWanted = true;
+    private bool _aimWithPad;
+    private Vector2 _padAim = Vector2.Down;
+    private int _waterExtinguishes;
     public bool MagnetActive => _magnetTimer > 0f;
     public int CoinMultiplier => _doubleCoinsTimer > 0f ? 2 : 1;
 
@@ -126,12 +131,20 @@ public partial class Player : CharacterBody2D
         _shieldSprite = new Sprite2D { Texture = GameAssets.Shield,Scale = Vector2.One*132f/GameAssets.Shield.GetWidth(),Material = GameAssets.Unshaded };
         _shieldVisual.AddChild(_shieldSprite); AddChild(_shieldVisual);
     }
-    public override void _UnhandledKeyInput(InputEvent input)
+    public override void _Input(InputEvent input)
+    {
+        if (input is InputEventMouseMotion mouse && mouse.Relative.LengthSquared() > 0.01f)
+        { _aimWithPad = false; if (_state == State.Playing) _hud?.NotifyTutorialLight(); }
+        if (input is InputEventJoypadMotion motion && (motion.Axis == JoyAxis.RightX || motion.Axis == JoyAxis.RightY) && Mathf.Abs(motion.AxisValue) > 0.2f)
+        { _aimWithPad = true; if (_state == State.Playing) _hud?.NotifyTutorialLight(); }
+    }
+    public override void _UnhandledInput(InputEvent input)
     {
         if (_state != State.Playing || GetTree().Paused) return;
-        if (input is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.F)
+        if (input.IsActionPressed(InputSetup.ToggleLantern) && !input.IsEcho())
         {
             _lampWanted = !_lampWanted; _lantern.Enabled = _lampWanted;
+            _hud?.NotifyTutorialLight();
             GetViewport().SetInputAsHandled();
         }
     }
@@ -205,7 +218,7 @@ public partial class Player : CharacterBody2D
 		_state = State.Emerging;
 		_currentVelocityX = 0f;
 
-		Extinguish();
+		Extinguish(false);
 		_coolingGrace = 5f;
 		Scale = Vector2.One;
 		if (_camera != null) { _camera.IgnoreRotation = false; _camera.Offset = Vector2.Zero; }
@@ -289,7 +302,7 @@ public partial class Player : CharacterBody2D
 	private void UpdateMovement(float dt)
 	{
 		// Аналоговий ввід: клавіші A/D, стрілки, D-pad або лівий стік.
-		float moveInput = Input.GetAxis(InputSetup.MoveLeft, InputSetup.MoveRight);
+		float moveInput = InputSetup.ReadMovement();
 
 		float targetVelocityX = moveInput * HorizontalSpeed;
 		_currentVelocityX = Mathf.Lerp(_currentVelocityX, targetVelocityX, 1f - Mathf.Exp(-dt * HorizontalDamping));
@@ -303,6 +316,7 @@ public partial class Player : CharacterBody2D
 			maxX = rightEdge - WallPadding;
 		}
 		float newX = Mathf.Clamp(Position.X + _currentVelocityX * dt, minX, maxX);
+        if (Mathf.Abs(newX-Position.X) > 0.05f) _hud?.NotifyTutorialMove();
 		Position = new Vector2(newX, FixedY);
 
 		// Нахил кубика залежно від швидкості
@@ -326,7 +340,7 @@ public partial class Player : CharacterBody2D
         Vector2 vibration = new Vector2(Mathf.Sin(_fxClock*29f),Mathf.Sin(_fxClock*37f))*turbulence*1.4f;
         _shakeStrength = Mathf.MoveToward(_shakeStrength,0f,dt*55f);
         Vector2 impact = new Vector2(Mathf.Sin(_fxClock*73f),Mathf.Cos(_fxClock*89f))*_shakeStrength;
-        Vector2 targetOffset = new Vector2(horizontalRatio * 34f, fallRatio * 32f) + vibration + impact;
+        Vector2 targetOffset = new Vector2(horizontalRatio * 34f, fallRatio * 32f) + (vibration + impact)*SaveData.CameraShake;
 		_camera.Offset = _camera.Offset.Lerp(targetOffset, Mathf.Clamp(dt * 4.5f, 0f, 1f));
 		_camera.Rotation = Mathf.Lerp(_camera.Rotation, -horizontalRatio * 0.022f, Mathf.Clamp(dt * 3.8f, 0f, 1f));
 		float zoomAmount = Mathf.Lerp(1.0f, 0.94f, fallRatio);
@@ -338,7 +352,7 @@ public partial class Player : CharacterBody2D
 		if (_invulnerableTimer <= 0f) return;
 		_invulnerableTimer = Mathf.Max(0f, _invulnerableTimer - dt);
 		if (_characterSprite != null)
-			_characterSprite.Visible = _invulnerableTimer <= 0f || ((int)(_invulnerableTimer * 14f) % 2 == 0);
+            _characterSprite.Visible = _invulnerableTimer <= 0f || SaveData.FlashIntensity < 0.5f || ((int)(_invulnerableTimer * 14f) % 2 == 0);
 	}
 
 	// ───────────────────────────── Нагрів і вогонь ─────────────────────────────
@@ -371,9 +385,15 @@ public partial class Player : CharacterBody2D
     {
         if (_lantern == null) return;
         Vector2 direction = GetGlobalMousePosition() - GlobalPosition;
-        if (direction.LengthSquared() < 16f) return;
-        float angle = direction.Angle() - Mathf.Pi * 0.5f; // Authored cone points down.
-        _lantern.GlobalRotation = Mathf.LerpAngle(_lantern.GlobalRotation,angle,1f-Mathf.Exp(-dt*20f));
+        if (_aimWithPad)
+        {
+            Vector2 stick = Input.GetVector(InputSetup.AimLeft,InputSetup.AimRight,InputSetup.AimUp,InputSetup.AimDown,0.2f);
+            if (stick.LengthSquared() > 0.01f) _padAim = stick.Normalized();
+            direction = _padAim.Rotated(_camera != null && !_camera.IgnoreRotation ? _camera.GlobalRotation : 0f);
+        }
+        if (!_aimWithPad && direction.LengthSquared() < 16f) return;
+        float angle = direction.Rotated(-GlobalRotation).Angle() - Mathf.Pi * 0.5f; // Authored cone points down.
+        _lantern.Rotation = Mathf.LerpAngle(_lantern.Rotation,angle,1f-Mathf.Exp(-dt*20f));
     }
     private void BuildThermalVisuals()
     {
@@ -401,13 +421,13 @@ public partial class Player : CharacterBody2D
         if (_fireGlow != null) _fireGlow.Hide();
         if (_fireParticles != null)
         {
-            _fireParticles.Texture = GD.Load<Texture2D>("res://Textures/Generated/flame_painted.png");
+            _fireParticles.Texture = GD.Load<Texture2D>("res://Textures/ArtRefresh/flame.png");
             _fireParticles.ScaleAmountMin = 0.005f; _fireParticles.ScaleAmountMax = 0.012f;
             _fireParticles.Amount = 18;
         }
         if (_smokeParticles != null)
         {
-            _smokeParticles.Texture = GD.Load<Texture2D>("res://Textures/Generated/light_halo_painted.png");
+            _smokeParticles.Texture = GD.Load<Texture2D>("res://Textures/ArtRefresh/light_halo.png");
             _smokeParticles.ScaleAmountMin = 0.035f; _smokeParticles.ScaleAmountMax = 0.065f;
         }
     }
@@ -421,6 +441,7 @@ public partial class Player : CharacterBody2D
                 if (area is Water && area.IsVisibleInTree() && area.Monitorable) { inWater = true; break; }
         if (inWater)
         {
+            _hud?.NotifyTutorialWater();
             _coolingGrace = WaterCoolingGraceSeconds + SaveData.Cooling * 2f;
             _temperature = Mathf.MoveToward(_temperature, 0f, dt * 1.5f);
             if (_isOnFire) Extinguish();
@@ -442,7 +463,7 @@ public partial class Player : CharacterBody2D
                 float burn = Mathf.Clamp(_burnTimer / _currentBurnDuration, 0f, 1f);
                 // Only the artwork contracts: the collision hitbox stays consistent.
                 if (_characterSprite != null) _characterSprite.Scale = Vector2.One * _skinSpriteScale * Mathf.Lerp(1f, 0.8f, burn);
-                if (_burnTimer >= _currentBurnDuration) { Die(); return; }
+                if (_burnTimer >= _currentBurnDuration) { Die(DeathCause.Overheat); return; }
             }
         }
         if (_characterSprite != null)
@@ -452,7 +473,7 @@ public partial class Player : CharacterBody2D
         _flameMaterial.SetShaderParameter("strength",_isOnFire ? 0.72f + 0.28f*Mathf.Clamp(_burnTimer/_currentBurnDuration,0f,1f) : 0f);
         _flameMaterial.SetShaderParameter("wind",Mathf.Clamp(-_currentVelocityX/HorizontalSpeed,-1f,1f));
         _flameMaterial.SetShaderParameter("speed",Mathf.Clamp(_levelGenerator.FallSpeed/760f,0f,1f));
-        _fireLight.Energy = _isOnFire ? 1.3f + 0.16f*Mathf.Sin(_fxClock*17f) : _temperature*0.12f;
+        _fireLight.Energy = _isOnFire ? 1.3f + SaveData.FlashIntensity*0.16f*Mathf.Sin(_fxClock*17f) : _temperature*0.12f;
         _flameEffect.Rotation = -GlobalRotation;
         _flameEffect.GlobalPosition = GlobalPosition + new Vector2(-58,-112);
         _thermalUiTimer += dt;
@@ -485,6 +506,7 @@ public partial class Player : CharacterBody2D
 
 	private void Extinguish(bool water = true)
 	{
+        if (water && _isOnFire && ++_waterExtinguishes >= 3) SaveData.UnlockMastery(2);
 		_coolingGrace = water ? WaterCoolingGraceSeconds + SaveData.Cooling * 2f : 0f;
         _temperature = Mathf.Min(_temperature, 0.25f);
         if (_flameEffect != null) _flameEffect.Visible = false;
@@ -535,7 +557,7 @@ public partial class Player : CharacterBody2D
 		}
 
 		if ((layer & LayerWater) != 0 || area.IsInGroup("Water"))
-			Extinguish();
+        { Extinguish(); _hud?.NotifyTutorialWater(); }
 	}
 
 	private void HitObstacle()
@@ -611,7 +633,7 @@ public partial class Player : CharacterBody2D
 
 	// ───────────────────────────── Смерть ─────────────────────────────
 
-	private void Die()
+	private void Die(DeathCause cause = DeathCause.Collision)
 	{
 		if (_state == State.Dead) return;
 
@@ -641,12 +663,12 @@ public partial class Player : CharacterBody2D
 		if (_debrisParticles != null) _debrisParticles.Emitting = true;
 
 		// Шейк камери від удару
-		if (_camera != null)
+		if (_camera != null && SaveData.CameraShake > 0f)
 		{
 			var shakeTween = CreateTween();
-			shakeTween.TweenProperty(_camera, "offset", new Vector2(GD.RandRange(-18, 18), GD.RandRange(-18, 18)), 0.04f);
-			shakeTween.TweenProperty(_camera, "offset", new Vector2(GD.RandRange(-10, 10), GD.RandRange(-10, 10)), 0.05f);
-			shakeTween.TweenProperty(_camera, "offset", new Vector2(GD.RandRange(-4, 4), GD.RandRange(-4, 4)), 0.06f);
+			shakeTween.TweenProperty(_camera, "offset", new Vector2(GD.RandRange(-18, 18), GD.RandRange(-18, 18))*SaveData.CameraShake, 0.04f);
+			shakeTween.TweenProperty(_camera, "offset", new Vector2(GD.RandRange(-10, 10), GD.RandRange(-10, 10))*SaveData.CameraShake, 0.05f);
+			shakeTween.TweenProperty(_camera, "offset", new Vector2(GD.RandRange(-4, 4), GD.RandRange(-4, 4))*SaveData.CameraShake, 0.06f);
 			shakeTween.TweenProperty(_camera, "offset", Vector2.Zero, 0.08f);
 		}
 
@@ -666,7 +688,7 @@ public partial class Player : CharacterBody2D
 		deathTween.Chain().TweenCallback(Callable.From(() =>
 		{
 			GetTree().Paused = true;
-			_hud?.ShowGameOver();
+			_hud?.ShowGameOver(cause);
 		}));
 	}
 

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bya0t0xsti8fd"]
 
-[ext_resource type="Texture2D" path="res://Textures/Generated/cave_basalt_painted.png" id="1_rock"]
+[ext_resource type="Texture2D" path="res://Textures/ArtRefresh/cave_basalt.png" id="1_rock"]
 
 [ext_resource type="Texture2D" path="res://Textures/Generated/crystal_cyan_painted.png" id="2_hazards"]
 

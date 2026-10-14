@@ -1,5 +1,20 @@
 # Нові ассети
 
+## Core Journey — 14 жовтня 2026
+
+У цьому оновленні нові PNG не генерувалися. Використані існуючі базальт,
+магмова порода, фон провалля, жеоди й три кубики; переглянуто їхній фактичний
+рендер у Godot. Відмінність зон забезпечують щільність уже наявних кристалів,
+плавна прозорість зі збереженням відповідності колізіям, колір і світло.
+Shader CaveCrystal зберігає індивідуальну прозорість спрайтів через vertex tint
+і враховує налаштування спалахів. Нові декоративні сліди малюються існуючим
+WindTrails із трьома додатковими палітрами без растрових ресурсів.
+
+Знак ривка — текстовий UI без затемнення, прив'язаний до видимого краю екрана.
+Написи HUD та меню залишаються живим текстом. Скриншоти перевірки —
+`crust-to-crust/artifacts/zone-*.png`, `edge-warning.png`, `shop-trails.png`
+та `narrow-menu.png`; це результати рендера, а не нові ігрові ассети.
+
 Інструмент: вбудований imagegen. PNG скопійовані до `crust-to-crust/Textures/Generated/`.
 Використано alpha генератора, без ручного домальовування чи процедурних текстур.
 
@@ -36,3 +51,11 @@ blue-teal reflected light and painterly shadows, no objects/text.
   molten orange-yellow rivers, embers, dark readable center, no objects or text.
 
 Інструмент створення — вбудований imagegen. Ассети не генеруються процедурно під час гри.
+
+## ArtRefresh — 14.10.2026
+Текстури з чату «Створи промпт для нової графіки» (01a13970-7bc1-7f23-8133-648a32f580ed) підключено через GameAssets, SaveData та сцени. Папка: crust-to-crust/Textures/ArtRefresh. Структура збережень і колізії скінів не змінені.
+Стіни cave_basalt/cave_magma, фони crystal_chasm/core_chasm, скіни hero_basalt/ice/ember, кристали crystal_cyan, уламки basalt_rock/obsidian_shard, magma_wheel, shield_obsidian, waterfall, light_halo, flashlight_cone та flame використовуються у грі. Монети Gold_1–3 утворюють цикл 1–2–3–2. crystal_amber залишається запасним варіантом.
+
+thermal_capsule.png — новий PNG 1024×1536 зі справжньою прозорістю. Термокапсула старого бурового обладнання із сухим порошковим струменем, для магмових зон та ядра. Масштаб у грі: 225×338 px, віддзеркалення біля правої стіни. Пул Water лишається для сумісності; змінюється спрайт, а охолодження та захист діють як раніше. Порошок рухає шейдер WaterfallV4 у powder_mode. Текст інтерфейсу не запечений.
+Промпт imagegen: “One orthographic painted 2D wall-mounted abandoned drilling thermal extinguisher capsule, dark ceramic insulated canister, chipped charcoal metal braces, amber status light, downward nozzle, long narrow dry pale ivory ceramic powder and inert grey gas plume, transparent background, 1024x1536. Readable at225px width. No liquid, water, ice, text, UI, background or ground.”
+Логіка світу: герметичний теплоізольований картридж має обмежений запас поглинача тепла та негорючого порошку; контакт гасить полум’я й тимчасово ізолює кубик від жару. Це художнє припущення світу гри, а не природний водоспад у ядрі.

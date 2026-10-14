@@ -13,12 +13,15 @@ public partial class GameplaySmoke : Node
     private async System.Threading.Tasks.Task Capture(string name)
     {
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-        GetViewport().GetTexture().GetImage().SavePng("res://artifacts/" + name + ".png");
+        using var texture = GetViewport().GetTexture();
+        using var image = texture.GetImage();
+        image.SavePng("res://artifacts/" + name + ".png");
     }
     public override async void _Ready()
     {
         try
         {
+            SaveData.Load(); SaveData.TutorialComplete = true;
             DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.NoFocus, true);
             await Wait(0.15f);
             DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath("res://artifacts"));
@@ -50,20 +53,22 @@ public partial class GameplaySmoke : Node
             coin.speed = 0f;
             await Wait(0.3f);
             Check(!coin.Visible && !coin.Monitorable, "collected coins disable their collision");
-            Check(hud.GetNode<Label>("Control/ScoreLabel").Text == "COINS: 1", "a coin scores exactly once");
+            Check(hud.GetNode<Label>("Control/ScoreLabel").Text == "МОНЕТИ: 1", "a coin scores exactly once");
             hitbox.Monitoring = false;
             _level.CurrentDepth = _level.CoreDepthPoint;
             float previousSpeed = _level.FallSpeed;
             float previousGravity = _level.GravityStrength, previousMin = _level.MinFallSpeed;
             _level.GravityStrength = 0f; _level.MinFallSpeed = 0f;
             _level.FallSpeed = 0f;
+            typeof(Player).GetField("_coolingGrace",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).SetValue(player,0f);
+            typeof(Player).GetField("_temperature",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).SetValue(player,0f);
             await Wait(0.15f);
             Check(!player.GetNode<CpuParticles2D>("FireParticles").Emitting, "entering the hot zone does not ignite instantly");
             await Wait(12f);
             _level.FallSpeed = previousSpeed;
             _level.GravityStrength = previousGravity; _level.MinFallSpeed = previousMin;
             hitbox.Monitoring = true;
-            Check(player.GetNode<CpuParticles2D>("FireParticles").Emitting, "the core ignites the player");
+            Check(player.GetNode<CpuParticles2D>("FireParticles").Emitting, $"the core ignites the player (temperature={player.Temperature},paused={GetTree().Paused},depth={_level.CurrentDepth})");
             var water = GD.Load<PackedScene>("res://Scenes/Obstacles/Water.tscn").Instantiate<Water>();
             _level.AddChild(water);
             water.Position = player.Position - water.GetNode<CollisionShape2D>("CollisionShape2D").Position;
@@ -124,6 +129,7 @@ public partial class GameplaySmoke : Node
             Check(!_level.IsGameActive && Mathf.IsZeroApprox(_level.FallSpeed), "death stops the world");
             await Capture("game-over");
             GD.Print("GAMEPLAY SMOKE PASSED");
+            _level.Free();
             GetTree().Quit();
         }
         catch (Exception error) { GD.PushError(error.ToString()); GetTree().Paused = false; GetTree().Quit(1); }

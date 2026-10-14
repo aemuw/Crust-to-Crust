@@ -41,6 +41,7 @@ public static class CaveLighting
                 if (child is Polygon2D rock)
                 {
                     string name = rock.Name.ToString();
+                    if (name == "DeepRock") rock.Texture = GD.Load<Texture2D>("res://Textures/ArtRefresh/crystal_chasm.png");
                     rock.Modulate = Colors.White;
                     rock.Material = styles[name == "DeepRock" ? 3 : name.StartsWith("LeftWall") ? 1 : name.StartsWith("RightWall") ? 2 : 0];
                     rock.TextureRepeat = CanvasItem.TextureRepeatEnum.Enabled;

@@ -8,12 +8,15 @@ public partial class CaveSmoke : Node
     private async System.Threading.Tasks.Task Capture(string name)
     {
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-        GetViewport().GetTexture().GetImage().SavePng("res://artifacts/" + name + ".png");
+        using var texture = GetViewport().GetTexture();
+        using var image = texture.GetImage();
+        image.SavePng("res://artifacts/" + name + ".png");
     }
     public override async void _Ready()
     {
         try
         {
+            SaveData.Load(); SaveData.TutorialComplete = true;
             // Render without taking desktop focus; injected input still works.
             DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.NoFocus, true);
             await Wait(0.15f);
@@ -69,9 +72,9 @@ public partial class CaveSmoke : Node
                 level.CurrentDepth = level.CoreDepthPoint - 1000;
                 await Wait(0.2f);
                 hitbox.Monitoring = true;
-                Input.ParseInputEvent(new InputEventKey { Keycode = left ? Key.A : Key.D, Pressed = true });
+                Input.ParseInputEvent(new InputEventKey { Keycode = left ? Key.A : Key.D, PhysicalKeycode = left ? Key.A : Key.D, Pressed = true });
                 await Wait(0.8f);
-                Input.ParseInputEvent(new InputEventKey { Keycode = left ? Key.A : Key.D, Pressed = false });
+                Input.ParseInputEvent(new InputEventKey { Keycode = left ? Key.A : Key.D, PhysicalKeycode = left ? Key.A : Key.D, Pressed = false });
                 await Wait(0.2f);
                 Check(player.GetNode<Sprite2D>("CharacterSprite").Visible && !GetTree().Paused,
                     (left ? "left" : "right") + $" waterfall can be entered with a lethal wall directly behind it (position={player.Position}, alive={player.GetNode<Sprite2D>("CharacterSprite").Visible}, paused={GetTree().Paused})");
@@ -85,11 +88,15 @@ public partial class CaveSmoke : Node
             water.Visible = false;
             water.Monitorable = false;
             water.ProcessMode = ProcessModeEnum.Disabled;
+            hitbox.Monitoring = false;
+            await Wait(0.15f);
             player.Position = new Vector2(220, player.FixedY);
+            hitbox.Monitoring = true;
             await Wait(1.2f);
             Check(GetTree().Paused && hud.GetNode<Control>("Control/GameOverPanel").Visible,
                 $"ordinary wall collisions remain lethal outside the waterfall approach (position={player.Position}, scale={player.Scale}, alive={player.GetNode<Sprite2D>("CharacterSprite").Visible}, paused={GetTree().Paused}, overlaps={hitbox.GetOverlappingAreas().Count})");
             GD.Print("CAVE SMOKE PASSED");
+            level.Free();
             GetTree().Quit();
         }
         catch (Exception error) { GD.PushError(error.ToString()); GetTree().Paused = false; GetTree().Quit(1); }

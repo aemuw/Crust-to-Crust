@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cme1hsg5dacv1"]
 
 [ext_resource type="Script" uid="uid://dmkpiy6is737r" path="res://Scripts/Player.cs" id="1_xhfnw"]
-[ext_resource type="Texture2D" path="res://Textures/Generated/hero_cube_v2.png" id="2_hero"]
+[ext_resource type="Texture2D" path="res://Textures/ArtRefresh/hero_basalt.png" id="2_hero"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ihk4x"]
 size = Vector2(64, 64)

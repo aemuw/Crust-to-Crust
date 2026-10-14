@@ -1,6 +1,6 @@
 [gd_scene load_steps=7 format=3 uid="uid://ccjjaufyefsd1"]
 [ext_resource type="Script" path="res://Scripts/Water.cs" id="1"]
-[ext_resource type="Texture2D" path="res://Textures/Generated/waterfall_v4.png" id="2"]
+[ext_resource type="Texture2D" path="res://Textures/ArtRefresh/waterfall.png" id="2"]
 [ext_resource type="Shader" path="res://Shaders/WaterfallV4.gdshader" id="3"]
 [sub_resource type="ShaderMaterial" id="WaterStyle"]
 shader = ExtResource("3")

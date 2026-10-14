@@ -11,6 +11,9 @@ public partial class AudioManager : Node
 	private const string MusicPath = "res://Audio/cave_ambience.wav";
 
 	private AudioStreamPlayer _music;
+    private AudioStreamPlayer _coreAccent;
+    private CaveZone _zone = CaveZone.Basalt;
+    private float _zonePitch = 1f;
 
 	public static void EnsureBuses()
 	{
@@ -57,5 +60,16 @@ public partial class AudioManager : Node
 		_music = new AudioStreamPlayer { Name = "Music", Stream = stream, Bus = MusicBus, VolumeDb = -4f };
 		AddChild(_music);
 		_music.Play();
+        _coreAccent = new AudioStreamPlayer { Name = "CoreAccent",Stream = GD.Load<AudioStream>("res://Audio/coin.wav"),Bus = SfxBus,VolumeDb = -8f,PitchScale = 0.55f };
+        AddChild(_coreAccent);
 	}
+    public void SetZone(CaveZone zone) => _zone = zone;
+    public void PlayCoreAccent() => _coreAccent?.Play();
+    public override void _Process(double delta)
+    {
+        if (GetTree().Paused || _music == null) return;
+        float target = _zone == CaveZone.Core ? 0.78f : _zone == CaveZone.Magma ? 0.88f : _zone == CaveZone.Crystal ? 1.08f : 1f;
+        _zonePitch = Mathf.Lerp(_zonePitch,target,1f-Mathf.Exp(-(float)delta*1.2f));
+        _music.PitchScale = _zonePitch;
+    }
 }

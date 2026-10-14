@@ -31,8 +31,8 @@ public static class SaveData
         Save();
         return true;
     }
-    public static string SkinPath(int skin) => skin == 1 ? "res://Textures/Generated/hero_ice.png"
-        : skin == 2 ? "res://Textures/Generated/hero_ember.png" : "res://Textures/Generated/hero_cube_v2.png";
+    public static string SkinPath(int skin) => skin == 1 ? "res://Textures/ArtRefresh/hero_ice.png"
+        : skin == 2 ? "res://Textures/ArtRefresh/hero_ember.png" : "res://Textures/ArtRefresh/hero_basalt.png";
     public static int Price(int level) => 12 * (level + 1);
     public static int UpgradeLevel(int item) => item == 0 ? Insulation : item == 1 ? Cooling : item == 2 ? Lantern : 3;
     public static bool Buy(int item)
@@ -58,6 +58,17 @@ public static class SaveData
     }
 
     public static bool EconomyLighting;
+    public static float CameraShake = 1f, FlashIntensity = 1f;
+    public static bool TutorialComplete;
+    public static int MasteryMask, SelectedTrail;
+    public static bool UnlockMastery(int bit)
+    {
+        Load(); if (bit < 0 || bit > 2 || (MasteryMask & (1 << bit)) != 0) return false;
+        MasteryMask |= 1 << bit; Save(); return true;
+    }
+    public static bool OwnsTrail(int trail) => trail == 0 || (trail > 0 && trail <= 3 && (MasteryMask & (1 << (trail-1))) != 0);
+    public static bool SelectTrail(int trail)
+    { Load(); if (!OwnsTrail(trail)) return false; SelectedTrail = trail; Save(); return true; }
     public static float MusicVolume = 0.7f;
 	public static float SfxVolume = 1f;
 
@@ -80,6 +91,12 @@ public static class SaveData
 		BestCoins = cfg.GetValue("best", "coins", 0).AsInt32();
 		BestLap = Mathf.Max(1, cfg.GetValue("best", "lap", 1).AsInt32());
 		EconomyLighting = cfg.GetValue("graphics","economy_lighting",false).AsBool();
+        CameraShake = Mathf.Clamp(cfg.GetValue("accessibility","camera_shake",1f).AsSingle(),0,1);
+        FlashIntensity = Mathf.Clamp(cfg.GetValue("accessibility","flash_intensity",1f).AsSingle(),0,1);
+        TutorialComplete = cfg.GetValue("progress","tutorial_complete",false).AsBool();
+        MasteryMask = cfg.GetValue("progress","mastery",0).AsInt32() & 7;
+        SelectedTrail = Mathf.Clamp(cfg.GetValue("skins","trail",0).AsInt32(),0,3);
+        if (!OwnsTrail(SelectedTrail)) SelectedTrail = 0;
         MusicVolume = Mathf.Clamp(cfg.GetValue("audio", "music", 0.7f).AsSingle(), 0f, 1f);
 		SfxVolume = Mathf.Clamp(cfg.GetValue("audio", "sfx", 1f).AsSingle(), 0f, 1f);
 	}
@@ -98,6 +115,10 @@ public static class SaveData
 		cfg.SetValue("best", "coins", BestCoins);
 		cfg.SetValue("best", "lap", BestLap);
 		cfg.SetValue("graphics","economy_lighting",EconomyLighting);
+        cfg.SetValue("accessibility","camera_shake",CameraShake);
+        cfg.SetValue("accessibility","flash_intensity",FlashIntensity);
+        cfg.SetValue("progress","tutorial_complete",TutorialComplete);
+        cfg.SetValue("progress","mastery",MasteryMask); cfg.SetValue("skins","trail",SelectedTrail);
         cfg.SetValue("audio", "music", MusicVolume);
 		cfg.SetValue("audio", "sfx", SfxVolume);
 		_dirty = cfg.Save(FilePath) != Error.Ok;

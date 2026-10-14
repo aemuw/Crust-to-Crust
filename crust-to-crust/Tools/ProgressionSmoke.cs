@@ -21,12 +21,15 @@ public partial class ProgressionSmoke : Node
     private async System.Threading.Tasks.Task Capture(string name)
     {
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-        GetViewport().GetTexture().GetImage().SavePng("res://artifacts/" + name + ".png");
+        using var texture = GetViewport().GetTexture();
+        using var image = texture.GetImage();
+        image.SavePng("res://artifacts/" + name + ".png");
     }
     public override async void _Ready()
     {
         try
         {
+            SaveData.Load(); SaveData.TutorialComplete = true;
             DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.NoFocus, true);
             await Wait(0.15f);
             var level = GD.Load<PackedScene>("res://Scenes/Main.tscn").Instantiate<LevelGenerator>();
@@ -69,6 +72,7 @@ public partial class ProgressionSmoke : Node
             player.ProcessMode = ProcessModeEnum.Inherit;
             level.CurrentDepth = level.TunnelLength;
             await Wait(0.1f);
+            for (int attempt = 0; level.IsGameActive && attempt < 30; attempt++) await Wait(0.1f);
             float beforeCinematic = level.ActivePlaySeconds;
             Check(!AnyCrystalVisible() && !AnyPooledHazardVisible(level), "end cinematic hides crystals and every pooled hazard");
             await Wait(3f);
@@ -87,6 +91,7 @@ public partial class ProgressionSmoke : Node
             Check(GetTree().Paused && hud.GetNode<Control>("Control/GameOverPanel").Visible,
                 "static background crystal still kills the player on contact");
             GD.Print("PROGRESSION SMOKE PASSED");
+            level.Free();
             GetTree().Quit();
         }
         catch (Exception error) { Engine.TimeScale = 1f; GD.PushError(error.ToString()); GetTree().Paused = false; GetTree().Quit(1); }

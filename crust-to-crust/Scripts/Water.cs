@@ -12,6 +12,7 @@ public partial class Water : Area2D
     private LevelGenerator _level;
     private PointLight2D _waterLight;
     public bool FromLeft => _fromLeft;
+    public bool IsThermalCapsule { get; private set; }
     public Vector2 StreamCenter => GlobalPosition + (_waterShape?.Position ?? Vector2.Zero);
 
 	public override void _Ready()
@@ -43,9 +44,19 @@ public partial class Water : Area2D
 
 	// Назву методу залишено для сумісності з пулом LevelGenerator.
 	// Тепер він лише ставить готовий анімований водоспад біля випадкової стіни.
-	public void GenerateRandomCaveGeometry()
+	public void GenerateRandomCaveGeometry(bool? fromLeft = null)
 	{
-		_fromLeft = GD.RandRange(0, 1) == 0;
+        IsThermalCapsule = _level != null && Mathf.Abs(_level.CurrentDepth+1450f-_level.CoreDepthPoint) <= 8000f;
+        if (_waterfallSprite != null)
+        {
+            _waterfallSprite.SpriteFrames = IsThermalCapsule ? GameAssets.CoolantFrames : GameAssets.WaterFrames;
+            _waterfallSprite.Material = IsThermalCapsule ? GameAssets.CoolantMaterial : GameAssets.WaterMaterial;
+            Texture2D texture = IsThermalCapsule ? GameAssets.Coolant : GameAssets.Waterfall;
+            _waterfallSprite.Scale = new Vector2(225f/texture.GetWidth(),338f/texture.GetHeight());
+            _waterfallSprite.Play("flow");
+        }
+        if (_waterLight != null) _waterLight.Color = IsThermalCapsule ? new Color("ffe0b0") : new Color("83d6e7");
+		_fromLeft = fromLeft ?? ((_level?.Director.NextInt(0,2) ?? GD.RandRange(0,1)) == 0);
         AlignToWall();
         if (_waterfallSprite != null)
         {

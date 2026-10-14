@@ -21,6 +21,11 @@ public partial class ShopSmoke : Node
             var cfg = new ConfigFile(); cfg.SetValue("shop", "wallet", 72); cfg.Save(path);
             typeof(SaveData).GetField("_loaded", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, false);
             SaveData.Load();
+            Check(SaveData.CameraShake == 1f && SaveData.FlashIntensity == 1f,"legacy save defaults to full shake and flashes");
+            SaveData.CameraShake = 0f; SaveData.FlashIntensity = 0f; SaveData.Save();
+            typeof(SaveData).GetField("_loaded", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, false);
+            SaveData.Load();
+            Check(SaveData.CameraShake == 0f && SaveData.FlashIntensity == 0f,"independent comfort settings survive reload");
             Check(!SaveData.Buy(-1), "invalid item rejected");
             Check(SaveData.Buy(0) && SaveData.Wallet == 60, "first level costs 12");
             Check(SaveData.Buy(0) && SaveData.Wallet == 36, "second level costs 24");

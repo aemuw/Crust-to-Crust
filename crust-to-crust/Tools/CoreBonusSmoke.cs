@@ -11,6 +11,8 @@ public partial class CoreBonusSmoke : Node
     {
         try
         {
+            DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.NoFocus,true);
+            SaveData.Load(); SaveData.TutorialComplete = true;
             var level = GD.Load<PackedScene>("res://Scenes/Main.tscn").Instantiate<LevelGenerator>(); AddChild(level);
             level.GetNode<Hud>("HUD").StartRun(); await Wait(2.8f);
             var player = level.Runner; player.GetNode<Area2D>("Hitbox").Monitoring = false;
@@ -39,6 +41,7 @@ public partial class CoreBonusSmoke : Node
             GetTree().Paused = true; await Wait(0.3f);
             Check(player.CoinMultiplier == 2 && player.MagnetActive,"pause does not consume effect timers");
             GetTree().Paused = false;
+            level.Free();
             GD.Print("CORE BONUS SMOKE PASSED"); GetTree().Quit();
         }
         catch (Exception e) { GD.PushError(e.ToString()); GetTree().Paused = false; GetTree().Quit(1); }

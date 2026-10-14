@@ -17,7 +17,7 @@ public partial class Coin : Area2D
     {
         GameAssets.Load(); _level = GetParent() as LevelGenerator;
         _coin = GetNodeOrNull<AnimatedSprite2D>("ColorRect") ?? GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
-        if (_coin != null) { _baseScale = _coin.Scale; _coin.Material = GameAssets.Unshaded; _coin.Play("Spin"); }
+        if (_coin != null) { _coin.SpriteFrames = GameAssets.CoinFrames; _baseScale = Vector2.One*40f/_coin.SpriteFrames.GetFrameTexture("Spin",0).GetWidth(); _coin.Scale = _baseScale; _coin.Material = GameAssets.Unshaded; _coin.Play("Spin"); }
         _rune = new Sprite2D { Texture = GameAssets.Shield,Scale = Vector2.One*70f/GameAssets.Shield.GetWidth(),Material = GameAssets.Unshaded };
         AddChild(_rune);
         _badge = new Label { Position = new Vector2(-29,-18),Size = new Vector2(58,36),HorizontalAlignment = HorizontalAlignment.Center,

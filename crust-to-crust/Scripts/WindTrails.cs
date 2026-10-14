@@ -41,7 +41,13 @@ public partial class WindTrails : Node2D
             float edge = Mathf.Clamp((Mathf.Abs(_points[i].X)-55f)/180f,0.15f,1f);
             float length = Mathf.Lerp(12f,68f,Mathf.Clamp(_speed/760f,0f,1f))*_weights[i];
             DrawLine(_points[i],_points[i]+new Vector2(_sideways*0.018f,length),
-                new Color(0.65f,0.83f,0.91f,_opacity*edge*_weights[i]),1f,true);
+                TrailColor(_opacity*edge*_weights[i]),1f,true);
         }
+    }
+    private static Color TrailColor(float alpha)
+    {
+        Color color = SaveData.SelectedTrail == 1 ? new Color("ffb556") : SaveData.SelectedTrail == 2 ? new Color("bda5ff")
+            : SaveData.SelectedTrail == 3 ? new Color("79e3d5") : new Color("a6d4e8");
+        color.A = alpha; return color;
     }
 }
