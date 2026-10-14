@@ -7,7 +7,7 @@ public partial class Hud : CanvasLayer
     private Control _gameOverPanel, _startMenuPanel, _pauseOverlay, _shop;
     private Button _pauseButton, _resumeButton, _shopBack;
     private readonly Button[] _shopItems = new Button[UpgradeCatalog.Count], _skinItems = new Button[CharacterCatalog.Count];
-    private readonly Button[] _trailItems = new Button[4];
+    private readonly Button[] _trailItems = new Button[TrailStyle.Count];
     private ProgressBar _heatBar;
     private Control _lanternStatus;
     private ProgressBar _chargeBar;
@@ -27,6 +27,7 @@ public partial class Hud : CanvasLayer
     private PanelContainer _shopCard;
     private GridContainer _skinGrid,_equipmentGrid;
     private ScrollContainer _skinScroll;
+    private ScrollContainer _trailScroll;
     private Label _heroName;
     private int _previewSkin;
     private Label _seedError;
@@ -81,17 +82,45 @@ public partial class Hud : CanvasLayer
     {
         var theme = new Theme { DefaultFontSize = 18 };
         theme.SetColor("font_color","Label",new Color("d5e2e6"));
-        theme.SetStylebox("normal","Button",Card(new Color("222928"),Edge,3));
-        theme.SetStylebox("hover","Button",Card(new Color("343d36"),Aqua,3));
-        theme.SetStylebox("pressed","Button",Card(new Color("1c231f"),Aqua,3));
-        theme.SetStylebox("focus","Button",Card(new Color(0,0,0,0),Aqua,3));
-        theme.SetStylebox("panel","PanelContainer",Card(Ink,Edge,4));
+        theme.SetColor("font_color","Button",new Color("e3dfd4"));
+        theme.SetColor("font_hover_color","Button",new Color("fff3dc"));
+        theme.SetColor("font_disabled_color","Button",new Color("757e7c"));
+        theme.SetStylebox("normal","Button",Card(new Color("202727"),new Color("454f4d"),3));
+        theme.SetStylebox("hover","Button",Card(new Color("2a3533"),new Color("79a69c"),3));
+        var pressed=Card(new Color("151e1e"),new Color("9cc9bb"),3); pressed.ContentMarginTop=14; pressed.ContentMarginBottom=10;
+        theme.SetStylebox("pressed","Button",pressed);
+        theme.SetStylebox("disabled","Button",Card(new Color("171c1c"),new Color("303836"),3));
+        var focus=Card(new Color(0,0,0,0),Aqua,3); focus.ShadowSize=0;
+        theme.SetStylebox("focus","Button",focus);
+        theme.SetStylebox("panel","PanelContainer",Card(new Color("10191b"),new Color("485552"),4));
+        theme.SetStylebox("panel","TabContainer",new StyleBoxEmpty());
+        foreach(string state in new[] {"tab_unselected","tab_selected","tab_hovered"})
+        {
+            var tab=Card(new Color(state=="tab_selected" ? "202c2c" : "111b1d"),new Color("38514c"),2);
+            tab.SetBorderWidthAll(0); tab.BorderWidthBottom=state=="tab_selected" ? 2 : 1;
+            tab.BorderColor=state=="tab_selected" ? Aqua : new Color("38514c"); tab.ShadowSize=0;
+            tab.ContentMarginTop=9; tab.ContentMarginBottom=9;
+            theme.SetStylebox(state,"TabBar",tab);
+            theme.SetStylebox(state,"TabContainer",tab);
+        }
+        theme.SetColor("font_selected_color","TabBar",new Color("f0ddbb"));
+        theme.SetColor("font_unselected_color","TabBar",new Color("9caaa4"));
+        theme.SetColor("font_selected_color","TabContainer",new Color("f0ddbb"));
+        theme.SetColor("font_unselected_color","TabContainer",new Color("9caaa4"));
+        theme.SetStylebox("normal","OptionButton",Card(new Color("182425"),new Color("526861"),3));
+        theme.SetStylebox("hover","OptionButton",Card(new Color("233332"),new Color("80aca1"),3));
+        theme.SetStylebox("focus","OptionButton",focus);
+        theme.SetStylebox("normal","LineEdit",Card(new Color("0c1518"),new Color("435c57"),2));
+        theme.SetStylebox("focus","LineEdit",focus);
+        var rail=Card(new Color("0a1315"),new Color("354743"),2); rail.ContentMarginTop=3; rail.ContentMarginBottom=3; rail.ShadowSize=0;
+        var fill=Card(new Color("679b8e"),new Color("679b8e"),2); fill.ContentMarginTop=3; fill.ContentMarginBottom=3; fill.ShadowSize=0;
+        theme.SetStylebox("slider","HSlider",rail); theme.SetStylebox("grabber_area","HSlider",fill); theme.SetStylebox("grabber_area_highlight","HSlider",fill);
         return theme;
     }
     private static StyleBoxFlat Card(Color fill, Color edge, int radius)
     {
         var style = new StyleBoxFlat { BgColor = fill, BorderColor = edge,
-            ShadowColor = new Color(0,0,0,0.35f), ShadowSize = 14,
+            ShadowColor = new Color(0,0,0,0.35f), ShadowSize = 7,
             ContentMarginLeft = 18, ContentMarginRight = 18, ContentMarginTop = 12, ContentMarginBottom = 12 };
         style.SetCornerRadiusAll(radius); style.SetBorderWidthAll(1);
         return style;
@@ -112,9 +141,27 @@ public partial class Hud : CanvasLayer
     }
     private static Button Button(Control parent, string text, System.Action action, string name = "")
     {
-        var button = new Button { Text = text, CustomMinimumSize = new Vector2(0,48) };
+        var button = new CaveButton { Text = text, CustomMinimumSize = new Vector2(0,48) };
         if (name != "") button.Name = name;
         parent.AddChild(button); button.Pressed += action; return button;
+    }
+    private static void Primary(Button button)
+    {
+        if(button is CaveButton cave) cave.Primary=true;
+        button.AddThemeStyleboxOverride("normal",Card(new Color("9f8558"),new Color("c1a579"),3));
+        button.AddThemeStyleboxOverride("hover",Card(new Color("b49a69"),new Color("e3c797"),3));
+        button.AddThemeStyleboxOverride("pressed",Card(new Color("796444"),new Color("ddbc88"),3));
+        button.AddThemeColorOverride("font_color",new Color("111919"));
+        button.AddThemeColorOverride("font_hover_color",new Color("111919"));
+        button.AddThemeColorOverride("font_pressed_color",new Color("111919"));
+        button.AddThemeColorOverride("font_focus_color",new Color("111919"));
+    }
+    private static VBoxContainer Section(VBoxContainer parent,string title)
+    {
+        var group=new VBoxContainer(); parent.AddChild(group); group.AddThemeConstantOverride("separation",8);
+        var heading=Text(group,title,12,new Color("8aaba0"));
+        var line=new HSeparator(); group.AddChild(line);
+        return group;
     }
     private static TextureRect Art(Control parent, Texture2D texture, Vector2 size)
     {
@@ -151,7 +198,7 @@ public partial class Hud : CanvasLayer
         title.AddThemeFontOverride("font",GD.Load<Font>("res://Fonts/BebasNeue-Regular.ttf"));
         title.AnchorLeft=0.09f; title.AnchorTop=0.12f;
         var start=Button(_startMenuPanel,"ГРАТИ",StartRun,"StartButton");
-        var characters=Button(_startMenuPanel,"ПЕРСОНАЖІ",OpenShop);
+        var characters=Button(_startMenuPanel,"МАЙСТЕРНЯ",OpenShop);
         var settings=Button(_startMenuPanel,"НАЛАШТУВАННЯ",()=>OpenSettings(_startMenuPanel));
         int index=0;
         foreach(var button in new[] { start,characters,settings })
@@ -162,10 +209,10 @@ public partial class Hud : CanvasLayer
             button.Alignment=HorizontalAlignment.Left;
             index++;
         }
-        start.AddThemeStyleboxOverride("normal",Card(new Color("4b4d32"),Aqua,3));
+        Primary(start); start.AddThemeFontSizeOverride("font_size",22);
         var halo=Art(_startMenuPanel,GameAssets.Halo,Vector2.Zero);
         halo.AnchorLeft=0.48f; halo.AnchorRight=0.93f; halo.AnchorTop=0.16f; halo.AnchorBottom=0.85f;
-        halo.Modulate=new Color(0.28f,0.58f,0.56f,0.65f);
+        halo.Modulate=new Color(0.28f,0.45f,0.40f,0.28f);
         _menuHero=Art(_startMenuPanel,CharacterCatalog.Texture(SaveData.SelectedSkin),Vector2.Zero);
         _menuHero.AnchorLeft=0.58f; _menuHero.AnchorRight=0.84f; _menuHero.AnchorTop=0.29f; _menuHero.AnchorBottom=0.69f;
         var best=Text(_startMenuPanel,$"{Mathf.FloorToInt(SaveData.BestDistance):N0} м  ·  рекорд",16,new Color("b3b9ab"));
@@ -199,7 +246,7 @@ public partial class Hud : CanvasLayer
         PlaceEnd(Text(_gameOverPanel,"ЗАБІГ ЗАВЕРШЕНО",30,new Color("eee5d2")),-250,-196);
         _gameOverStats=Text(_gameOverPanel,"",19); PlaceEnd(_gameOverStats,-174,12);
         PlaceEnd(Button(_gameOverPanel,"ЩЕ РАЗ",Restart,"RestartButton"),38,90);
-        PlaceEnd(Button(_gameOverPanel,"ПЕРСОНАЖІ",OpenShop),104,152);
+        PlaceEnd(Button(_gameOverPanel,"МАЙСТЕРНЯ",OpenShop),104,152);
         PlaceEnd(Button(_gameOverPanel,"МЕНЮ",()=>Reload(false)),166,214);
         var seed=Button(_gameOverPanel,"Повторити маршрут",()=>{ LevelGenerator.RequestedSeed=(GetParent() as LevelGenerator)?.RunSeed; Reload(true); },"ReplaySeedButton");
         seed.AddThemeFontSizeOverride("font_size",14); PlaceEnd(seed,230,268);
@@ -281,15 +328,17 @@ public partial class Hud : CanvasLayer
         _settings.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); FullShade(_settings,0.96f);
         var box=CenterCard(_settings,480);
         Text(box,"НАЛАШТУВАННЯ",28,new Color("eee5d2"));
-        Volume(box,"Музика",SaveData.MusicVolume,v=>SaveData.MusicVolume=v);
-        Volume(box,"Ефекти",SaveData.SfxVolume,v=>SaveData.SfxVolume=v);
-        Volume(box,"Тряска",SaveData.CameraShake,v=>SaveData.CameraShake=v);
-        Volume(box,"Спалахи",SaveData.FlashIntensity,v=>SaveData.FlashIntensity=v);
+        var audio=Section(box,"ЗВУК");
+        Volume(audio,"Музика",SaveData.MusicVolume,v=>SaveData.MusicVolume=v);
+        Volume(audio,"Ефекти",SaveData.SfxVolume,v=>SaveData.SfxVolume=v);
+        var visuals=Section(box,"ЗОБРАЖЕННЯ");
+        Volume(visuals,"Тряска",SaveData.CameraShake,v=>SaveData.CameraShake=v);
+        Volume(visuals,"Спалахи",SaveData.FlashIntensity,v=>SaveData.FlashIntensity=v);
         var light=new CheckButton { Text="Економне світло",ButtonPressed=SaveData.EconomyLighting };
-        box.AddChild(light);
+        visuals.AddChild(light);
         light.Toggled+=low=>{ SaveData.EconomyLighting=low; if(GetParent() is LevelGenerator level) level.CrystalLightBudget=low ? 3 : 6; };
         var advanced=new VBoxContainer { Visible=false }; box.AddChild(advanced);
-        var more=Button(box,"Маршрут і керування",()=>advanced.Visible=!advanced.Visible);
+        var more=Button(box,"КЕРУВАННЯ І МАРШРУТ",()=>advanced.Visible=!advanced.Visible);
         box.MoveChild(more,box.GetChildCount()-2);
         Text(advanced,"A / D · рух    Мишка · напрям світла\nЛКМ · ліхтар    Esc · пауза",15);
         Text(advanced,"Геймпад: лівий стік · рух, правий · світло\nY · ліхтар, Start · пауза, B · назад",14);
@@ -318,7 +367,9 @@ public partial class Hud : CanvasLayer
         var label = Text(row,caption,17); label.CustomMinimumSize = new Vector2(100,0);
         var slider = new HSlider { MinValue = 0, MaxValue = 1, Step = 0.05, Value = value,
             CustomMinimumSize = new Vector2(0,30), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        row.AddChild(slider); slider.ValueChanged += v => { apply((float)v); AudioManager.ApplyVolumes(); SaveData.Save(); };
+        row.AddChild(slider);
+        var number=Text(row,$"{value*100:0}%",15,new Color("bbc9bf")); number.CustomMinimumSize=new Vector2(48,0); number.HorizontalAlignment=HorizontalAlignment.Right;
+        slider.ValueChanged += v => { number.Text=$"{v*100:0}%"; apply((float)v); AudioManager.ApplyVolumes(); SaveData.Save(); };
     }
     private void BuildShop(Control root)
     {
@@ -356,7 +407,9 @@ public partial class Hud : CanvasLayer
             _skinLabels[i].AutowrapMode=TextServer.AutowrapMode.WordSmart;
             _skinLabels[i].SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide); _skinLabels[i].OffsetLeft=4; _skinLabels[i].OffsetRight=-4; _skinLabels[i].OffsetTop=-42; _skinLabels[i].OffsetBottom=-2;
         }
-        var preview=new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; characters.AddChild(preview);
+        var previewCard=new PanelContainer { Name="SkinPreviewCard",SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; characters.AddChild(previewCard);
+        previewCard.AddThemeStyleboxOverride("panel",Card(new Color("172322"),new Color("3d514b"),3));
+        var preview=new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; previewCard.AddChild(preview);
         _shopHero=Art(preview,CharacterCatalog.Texture(0),new Vector2(200,225));
         _heroName=Text(preview,"",20); _heroName.HorizontalAlignment=HorizontalAlignment.Center;
         _heroName.AutowrapMode=TextServer.AutowrapMode.WordSmart;
@@ -364,6 +417,7 @@ public partial class Hud : CanvasLayer
             if(SaveData.SelectOrBuySkin(_previewSkin)) GetParent().GetNode<Player>("Player").ApplySkin();
             RefreshShop();
         });
+        Primary(_buySkin);
         _unlockForm=Button(preview,"",()=>{
             SaveData.SelectOrBuySkin(CharacterCatalog.BaseSkin(CharacterCatalog.Get(_previewSkin).Form));
             GetParent().GetNode<Player>("Player").ApplySkin(); RefreshShop();
@@ -376,17 +430,24 @@ public partial class Hud : CanvasLayer
         for(int i=0;i<UpgradeCatalog.Count;i++)
         {
             int item=i; _shopItems[i]=Button(equipment,"",()=>{ SaveData.Buy(item); RefreshShop(); });
+            _shopItems[i].Alignment=HorizontalAlignment.Left;
             _shopItems[i].CustomMinimumSize=new Vector2(0,90); _shopItems[i].SizeFlagsHorizontal=Control.SizeFlags.ExpandFill;
             _shopItems[i].AddThemeFontSizeOverride("font_size",14);
         }
         var trails=new VBoxContainer { Name="Сліди" }; tabs.AddChild(trails);
-        Text(trails,"КОСМЕТИЧНИЙ СЛІД ЗА ФІГУРОЮ",15,Aqua);
-        Text(trails,"Нагорода за досягнення. Не витрачає заряд і не змінює швидкість.",14);
+        Text(trails,"ОБЕРИ СЛІД",15,Aqua);
         _trailPreview=new TrailPreview { CustomMinimumSize=new Vector2(0,88),MouseFilter=Control.MouseFilterEnum.Ignore }; trails.AddChild(_trailPreview);
-        for(int i=0;i<4;i++)
+        var trailScroll=new ScrollContainer { Name="TrailScroll",CustomMinimumSize=new Vector2(0,276),HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,FollowFocus=true }; trails.AddChild(trailScroll);
+        _trailScroll=trailScroll;
+        tabs.TabChanged+=tab=>{ if(tab==2) Callable.From(()=>_trailScroll.EnsureControlVisible(_trailItems[SaveData.SelectedTrail])).CallDeferred(); };
+        var trailList=new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; trailScroll.AddChild(trailList); trailList.AddThemeConstantOverride("separation",7);
+        for(int i=0;i<TrailStyle.Count;i++)
         {
-            int id=i; _trailItems[i]=Button(trails,"",()=>{ SaveData.SelectTrail(id); RefreshShop(); _trailPreview.StyleId=id; });
+            int id=i; _trailItems[i]=Button(trailList,"",()=>{ SaveData.SelectTrail(id); RefreshShop(); _trailPreview.StyleId=id; });
             _trailItems[i].AddThemeFontSizeOverride("font_size",15);
+            _trailItems[i].Alignment=HorizontalAlignment.Left;
+            _trailItems[i].AutowrapMode=TextServer.AutowrapMode.WordSmart;
+            _trailItems[i].CustomMinimumSize=new Vector2(0,54);
         }
         _shopBack=Button(box,"НАЗАД",CloseShop);
         _shop.Resized+=ResizeShop;
@@ -429,9 +490,10 @@ public partial class Hud : CanvasLayer
         _buySkin.Disabled=(locked && character.Id!=baseSkin) || SaveData.SelectedSkin==character.Id || (!SaveData.OwnsSkin(character.Id) && SaveData.Wallet<character.Price);
         _menuHero.Texture=CharacterCatalog.Texture(SaveData.SelectedSkin);
         _trailPreview.StyleId=SaveData.SelectedTrail;
-        for(int i=0;i<4;i++)
+        for(int i=0;i<TrailStyle.Count;i++)
         {
-            _trailItems[i].Text=(SaveData.SelectedTrail==i ? "✓  " : "")+TrailStyle.Name(i)+" · "+(SaveData.OwnsTrail(i) ? "Відкрито" : TrailStyle.Requirement(i));
+            _trailItems[i].Text=TrailStyle.Name(i)+(SaveData.SelectedTrail==i ? "  ·  ОБРАНО" : SaveData.OwnsTrail(i) ? "" : "\n"+TrailStyle.Requirement(i));
+            _trailItems[i].AddThemeStyleboxOverride("normal",Card(new Color(SaveData.SelectedTrail==i ? "293b34" : "172323"),SaveData.SelectedTrail==i ? Aqua : new Color("42574f"),3));
             _trailItems[i].Disabled=false;
         }
     }

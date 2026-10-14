@@ -41,7 +41,7 @@ public partial class PresentationSmoke : Node
             Check(GetViewport().GetVisibleRect().Grow(1).Encloses(equipment[^1].GetGlobalRect()),"last equipment card scrolls into view");
             tabs.CurrentTab=2; SaveData.MasteryMask=7;
             var trailButtons=(Button[])Field(hud,"_trailItems");
-            for(int i=0;i<4;i++)
+            for(int i=0;i<TrailStyle.Count;i++)
             {
                 trailButtons[i].EmitSignal(Button.SignalName.Pressed); await Wait(0.04f);
                 Check(SaveData.SelectedTrail==i && ((TrailPreview)Field(hud,"_trailPreview")).StyleId==i,"trail choice and preview agree: "+i);
@@ -57,7 +57,7 @@ public partial class PresentationSmoke : Node
             level.SetProcess(false); level.SetPhysicsProcess(false); level.SetTunnelHazardsVisible(false); level.FallSpeed=600; player.SetPhysicsProcess(false);
             await Wait(0.7f);
             var trail=player.GetNode<MasteryTrail>("MasteryTrail");
-            Check(trail.Visible && trail.StyleId==3 && trail.SampleCount>=20,"selected water mastery produces an actual trail behind the moving runner"); await Capture("actual-trail");
+            Check(trail.Visible && trail.StyleId==TrailStyle.Count-1 && trail.SampleCount>=20,"selected new trail renders behind the moving runner"); await Capture("actual-trail");
             GetTree().Paused=true; int samples=trail.SampleCount; var points=(Vector2[])Field(trail,"_points"); Vector2 saved=points[0]; await Wait(0.15f);
             Check(samples==trail.SampleCount && saved==points[0],"pause freezes actual trail samples"); GetTree().Paused=false;
             level.CurrentDepth=level.TunnelLength; level.SetProcess(true);

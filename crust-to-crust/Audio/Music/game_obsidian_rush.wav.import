@@ -3,12 +3,12 @@
 importer="wav"
 type="AudioStreamWAV"
 uid="uid://c8pnviswsdl2g"
-path="res://.godot/imported/game_obsidian_rush.wav-bba708759fbb4a46877d4d95999485a4.sample"
+path="res://.godot/imported/game_obsidian_rush.wav-f0111faadf3b699b69f5865fc524be6a.sample"
 
 [deps]
 
-source_file="res://Audio/game_obsidian_rush.wav"
-dest_files=["res://.godot/imported/game_obsidian_rush.wav-bba708759fbb4a46877d4d95999485a4.sample"]
+source_file="res://Audio/Music/game_obsidian_rush.wav"
+dest_files=["res://.godot/imported/game_obsidian_rush.wav-f0111faadf3b699b69f5865fc524be6a.sample"]
 
 [params]
 

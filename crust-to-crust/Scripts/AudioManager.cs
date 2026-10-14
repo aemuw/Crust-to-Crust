@@ -8,7 +8,7 @@ public partial class AudioManager : Node
 {
 	public const string MusicBus = "Music";
 	public const string SfxBus = "SFX";
-	private const string MusicPath = "res://Audio/cave_ambience.wav";
+	private const string MusicPath = "res://Audio/Ambience/cave_ambience.wav";
 
 	private AudioStreamPlayer _music;
     private AudioStreamPlayer _menuScore, _gameScore;
@@ -63,10 +63,10 @@ public partial class AudioManager : Node
 		_music = new AudioStreamPlayer { Name = "Music", Stream = stream, Bus = MusicBus, VolumeDb = -4f };
 		AddChild(_music);
 		_music.Play();
-        _menuScore = CreateScore("MenuScore", "res://Audio/menu_planets_lullaby.wav", -2f);
-        _gameScore = CreateScore("GameScore", "res://Audio/game_obsidian_rush.wav", -60f);
+        _menuScore = CreateScore("MenuScore", "res://Audio/Music/menu_planets_lullaby.wav", -2f);
+        _gameScore = CreateScore("GameScore", "res://Audio/Music/game_obsidian_rush.wav", -60f);
         _menuScore.Play();
-        _coreAccent = new AudioStreamPlayer { Name = "CoreAccent",Stream = GD.Load<AudioStream>("res://Audio/coin.wav"),Bus = SfxBus,VolumeDb = -8f,PitchScale = 0.55f };
+        _coreAccent = new AudioStreamPlayer { Name = "CoreAccent",Stream = GD.Load<AudioStream>("res://Audio/SFX/coin.wav"),Bus = SfxBus,VolumeDb = -8f,PitchScale = 0.55f };
         AddChild(_coreAccent);
 	}
     private AudioStreamPlayer CreateScore(string name, string path, float volume)

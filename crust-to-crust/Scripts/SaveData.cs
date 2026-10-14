@@ -76,7 +76,7 @@ public static class SaveData
         Load(); if (bit < 0 || bit > 2 || (MasteryMask & (1 << bit)) != 0) return false;
         MasteryMask |= 1 << bit; Save(); return true;
     }
-    public static bool OwnsTrail(int trail) => trail == 0 || (trail > 0 && trail <= 3 && (MasteryMask & (1 << (trail-1))) != 0);
+    public static bool OwnsTrail(int trail) => trail == 0 || (trail >= 4 && trail < TrailStyle.Count) || (trail > 0 && trail <= 3 && (MasteryMask & (1 << (trail-1))) != 0);
     public static bool SelectTrail(int trail)
     { Load(); if (!OwnsTrail(trail)) return false; SelectedTrail = trail; Save(); return true; }
     public static float MusicVolume = 0.7f;
@@ -109,7 +109,7 @@ public static class SaveData
         FlashIntensity = Mathf.Clamp(cfg.GetValue("accessibility","flash_intensity",1f).AsSingle(),0,1);
         TutorialComplete = cfg.GetValue("progress","tutorial_complete",false).AsBool();
         MasteryMask = cfg.GetValue("progress","mastery",0).AsInt32() & 7;
-        SelectedTrail = Mathf.Clamp(cfg.GetValue("skins","trail",0).AsInt32(),0,3);
+        SelectedTrail = Mathf.Clamp(cfg.GetValue("skins","trail",0).AsInt32(),0,TrailStyle.Count-1);
         if (!OwnsTrail(SelectedTrail)) SelectedTrail = 0;
         MusicVolume = Mathf.Clamp(cfg.GetValue("audio", "music", 0.7f).AsSingle(), 0f, 1f);
 		SfxVolume = Mathf.Clamp(cfg.GetValue("audio", "sfx", 1f).AsSingle(), 0f, 1f);

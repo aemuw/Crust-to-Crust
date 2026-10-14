@@ -79,7 +79,7 @@ public partial class Player : CharacterBody2D
 	private LevelGenerator _levelGenerator;
 	private AudioStreamPlayer _coinSfx;
 	private AudioStreamPlayer _deathSfx;
-	private AudioStreamPlayer _waterSfx;
+	private AudioStreamPlayer _coolingSfx;
 
 	public bool HasShield => _hasShield;
 
@@ -97,9 +97,9 @@ public partial class Player : CharacterBody2D
 		_smokeParticles = GetNodeOrNull<CpuParticles2D>("SmokeParticles");
 		_debrisParticles = GetNodeOrNull<CpuParticles2D>("DebrisParticles");
 
-		_coinSfx = EnsureSfx("CoinSfx", "res://Audio/coin.wav");
-		_deathSfx = EnsureSfx("DeathSfx", "res://Audio/death.wav");
-		_waterSfx = EnsureSfx("WaterSfx", "res://Audio/steam.wav");
+		_coinSfx = EnsureSfx("CoinSfx", "res://Audio/SFX/coin.wav");
+		_deathSfx = EnsureSfx("DeathSfx", "res://Audio/SFX/death.wav");
+		_coolingSfx = EnsureSfx("CryoCoolingSfx", "res://Audio/SFX/cryo_cooling.wav");
 
 		_hitbox = GetNodeOrNull<Area2D>("Hitbox");
 		if (_hitbox != null)
@@ -435,7 +435,7 @@ public partial class Player : CharacterBody2D
         AddChild(_flameEffect);
         _wind = new WindTrails { Name = "WindTrails" }; AddChild(_wind);
         _masteryTrail=new MasteryTrail { Name="MasteryTrail" }; AddChild(_masteryTrail);
-        _windSfx = EnsureSfx("WindSfx","res://Audio/wind.wav");
+        _windSfx = EnsureSfx("WindSfx","res://Audio/Ambience/wind.wav");
         if (_windSfx.Stream is AudioStreamWav windAudio)
         {
             windAudio.LoopMode = AudioStreamWav.LoopModeEnum.Forward;
@@ -515,7 +515,7 @@ public partial class Player : CharacterBody2D
         if (water && _isOnFire && ++_waterExtinguishes >= 3) SaveData.UnlockMastery(2);
 		_coolingGrace = water ? CryoProtectionSeconds + SaveData.Cooling * 2f : 0f;
         if (!water) _temperature = 0f;
-        if (_isOnFire) _waterSfx?.Play();
+        if (_isOnFire) _coolingSfx?.Play();
         StopFlames();
     }
 

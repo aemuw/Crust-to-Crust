@@ -37,7 +37,7 @@ public partial class Water : Area2D
         _gas = new ColorRect { Name = "ColdGas", MouseFilter = Control.MouseFilterEnum.Ignore, Material = _gasMaterial, ZIndex = 4 };
         AddChild(_gas);
         _light = CaveLighting.Light(new Color("91dbe7"), 0.35f, 0.12f, false); AddChild(_light);
-        _hiss = new AudioStreamPlayer2D { Name = "FissureHiss", Stream = GD.Load<AudioStream>("res://Audio/steam.wav"),
+        _hiss = new AudioStreamPlayer2D { Name = "FissureHiss", Stream = GD.Load<AudioStream>("res://Audio/SFX/cryo_vent.wav"),
             Bus = AudioManager.SfxBus, VolumeDb = -22, MaxDistance = 600, PitchScale = 0.85f };
         AddChild(_hiss);
         GenerateRandomCaveGeometry();
