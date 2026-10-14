@@ -18,9 +18,9 @@ public static class SafePassage
         : variant == 4 ? MathF.Sqrt(12f*12f+33f*33f)
         : variant == 2 ? 49f : variant == 3 ? 37f : variant == 5 ? 24f : 29f;
 
-    public static bool TryBounds(int side,float lane,float radius,float left,float right,out float min,out float max)
+    public static bool TryBounds(int side,float lane,float radius,float left,float right,out float min,out float max,float playerRadius=PlayerRadius)
     {
-        float gap = HalfWidth+PlayerRadius+radius+Clearance;
+        float gap = HalfWidth+playerRadius+radius+Clearance;
         min = side < 0 ? left+radius+WallMargin : lane+gap;
         max = side < 0 ? lane-gap : right-radius-WallMargin;
         return min <= max;

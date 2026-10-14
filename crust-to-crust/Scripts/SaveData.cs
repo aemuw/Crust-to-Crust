@@ -15,12 +15,12 @@ public static class SaveData
     public static int Lantern { get; private set; }
     public static int SkinOwnedMask { get; private set; } = 1;
     public static int SelectedSkin { get; private set; }
-    public static int SkinPrice(int skin) => skin == 1 ? 24 : skin == 2 ? 36 : 0;
-    public static bool OwnsSkin(int skin) => skin >= 0 && skin <= 2 && (SkinOwnedMask & (1 << skin)) != 0;
+    public static int SkinPrice(int skin) => CharacterCatalog.Get(skin).Price;
+    public static bool OwnsSkin(int skin) => skin >= 0 && skin < CharacterCatalog.Count && (SkinOwnedMask & (1 << skin)) != 0;
     public static bool SelectOrBuySkin(int skin)
     {
         Load();
-        if (skin < 0 || skin > 2) return false;
+        if (skin < 0 || skin >= CharacterCatalog.Count) return false;
         if (!OwnsSkin(skin))
         {
             int price = SkinPrice(skin);
@@ -31,8 +31,7 @@ public static class SaveData
         Save();
         return true;
     }
-    public static string SkinPath(int skin) => skin == 1 ? "res://Textures/ArtRefresh/hero_ice.png"
-        : skin == 2 ? "res://Textures/ArtRefresh/hero_ember.png" : "res://Textures/ArtRefresh/hero_basalt.png";
+    public static string SkinPath(int skin) => CharacterCatalog.Get(skin).TexturePath;
     public static int Price(int level) => 12 * (level + 1);
     public static int UpgradeLevel(int item) => item == 0 ? Insulation : item == 1 ? Cooling : item == 2 ? Lantern : 3;
     public static bool Buy(int item)
@@ -84,8 +83,8 @@ public static class SaveData
         Insulation = Mathf.Clamp(cfg.GetValue("shop", "insulation", 0).AsInt32(), 0, 3);
         Cooling = Mathf.Clamp(cfg.GetValue("shop", "cooling", 0).AsInt32(), 0, 3);
         Lantern = Mathf.Clamp(cfg.GetValue("shop", "lantern", 0).AsInt32(), 0, 3);
-        SkinOwnedMask = (cfg.GetValue("skins", "owned", 1).AsInt32() & 7) | 1;
-        SelectedSkin = Mathf.Clamp(cfg.GetValue("skins", "selected", 0).AsInt32(), 0, 2);
+        SkinOwnedMask = (cfg.GetValue("skins", "owned", 1).AsInt32() & ((1<<CharacterCatalog.Count)-1)) | 1;
+        SelectedSkin = CharacterCatalog.Get(cfg.GetValue("skins", "selected", 0).AsInt32()).Id;
         if (!OwnsSkin(SelectedSkin)) SelectedSkin = 0;
         BestDistance = cfg.GetValue("best", "distance", 0f).AsSingle();
 		BestCoins = cfg.GetValue("best", "coins", 0).AsInt32();

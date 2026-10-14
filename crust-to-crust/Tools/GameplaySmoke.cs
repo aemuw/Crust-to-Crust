@@ -32,6 +32,7 @@ public partial class GameplaySmoke : Node
             var hud = _level.GetNode<Hud>("HUD");
             hud.GetNode<Button>("Control/StartMenuPanel/StartButton").EmitSignal(Button.SignalName.Pressed);
             await Wait(3f);
+            for(int i=0;!_level.IsGameActive && i<80;i++) await Wait(0.1f);
             Check(_level.IsGameActive, "intro finishes and falling starts");
             var player = _level.GetNode<Player>("Player");
             player.GetNode<Area2D>("Hitbox").Monitoring = false;
@@ -111,7 +112,9 @@ public partial class GameplaySmoke : Node
             await Wait(0.1f);
             await Wait(0.9f);
             float angle = _level.GetNode<Camera2D>("Camera2D").Rotation;
-            Check(angle > 0.1f && angle < Mathf.Pi, "camera rotates gradually after the hang");
+            // Observe an intermediate rotation rather than assuming identical first-draw timing.
+            for(int i=0;angle<=0.1f && i<15;i++) { await Wait(0.05f); angle=_level.GetNode<Camera2D>("Camera2D").Rotation; }
+            Check(angle > 0.1f && angle < Mathf.Pi, $"camera rotates gradually after the hang (angle={angle}, paused={GetTree().Paused}, playerY={player.Position.Y})");
             await Capture("emergence-turn");
             await Wait(4.2f);
             Check(_level.IsGameActive, "falling resumes after the emergence sequence");
@@ -130,6 +133,7 @@ public partial class GameplaySmoke : Node
             await Capture("game-over");
             GD.Print("GAMEPLAY SMOKE PASSED");
             _level.Free();
+            await Wait(0.15f);
             GetTree().Quit();
         }
         catch (Exception error) { GD.PushError(error.ToString()); GetTree().Paused = false; GetTree().Quit(1); }

@@ -42,6 +42,7 @@ public partial class CoreBonusSmoke : Node
             Check(player.CoinMultiplier == 2 && player.MagnetActive,"pause does not consume effect timers");
             GetTree().Paused = false;
             level.Free();
+            await Wait(0.15f);
             GD.Print("CORE BONUS SMOKE PASSED"); GetTree().Quit();
         }
         catch (Exception e) { GD.PushError(e.ToString()); GetTree().Paused = false; GetTree().Quit(1); }

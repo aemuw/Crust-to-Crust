@@ -86,12 +86,22 @@ public partial class ProgressionSmoke : Node
             Check(level.Difficulty > 0.99f, "difficulty is preserved between planet traversals");
             player.GetNode<Area2D>("Hitbox").Monitoring = true;
             var testCrystal = (Sprite2D)GetTree().GetNodesInGroup("TunnelCrystal")[0];
-            testCrystal.GlobalPosition = player.GlobalPosition;
+            // Force an actual solid crystal contact. Moving it into the escape route
+            // while the generator runs correctly suppresses its collision instead.
+            level.SetProcess(false); level.SetPhysicsProcess(false); player.SetProcess(false);
+            var contact=testCrystal.GetChild<Area2D>(0);
+            var polygon=contact.GetChild<CollisionPolygon2D>(0);
+            Vector2 center=Vector2.Zero;
+            foreach(var point in polygon.Polygon) center+=polygon.ToGlobal(point);
+            center/=polygon.Polygon.Length;
+            testCrystal.GlobalPosition+=player.GlobalPosition-center;
+            testCrystal.Show(); contact.Monitorable=true; polygon.Disabled=false;
             await Wait(1.2f);
             Check(GetTree().Paused && hud.GetNode<Control>("Control/GameOverPanel").Visible,
                 "static background crystal still kills the player on contact");
             GD.Print("PROGRESSION SMOKE PASSED");
             level.Free();
+            await Wait(0.15f);
             GetTree().Quit();
         }
         catch (Exception error) { Engine.TimeScale = 1f; GD.PushError(error.ToString()); GetTree().Paused = false; GetTree().Quit(1); }

@@ -29,3 +29,4 @@ obj/
 # Smoke-test screenshots
 artifacts/
 *.log
+.superpowers/

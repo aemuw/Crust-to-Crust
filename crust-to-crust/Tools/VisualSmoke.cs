@@ -70,6 +70,7 @@ public partial class VisualSmoke : Node
             await Wait(0.04f);
             Check(level.VisualWarmth > 0.7f,"cool biome also fades instead of popping");
             level.Free();
+            await Wait(0.15f);
             GD.Print("VISUAL SMOKE PASSED"); GetTree().Quit();
         }
         catch (Exception error) { GD.PushError(error.ToString()); GetTree().Paused = false; GetTree().Quit(1); }

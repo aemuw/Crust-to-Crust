@@ -46,6 +46,10 @@ public partial class Player : CharacterBody2D
     private AudioStreamPlayer _windSfx;
     private PointLight2D _lantern;
     public float Temperature => _temperature;
+    public float CollisionEnvelopeRadius => CharacterCatalog.Get(SaveData.SelectedSkin).EnvelopeRadius;
+    private CollisionShape2D _bodyShape, _contactShape;
+    private Transform2D _previousContactTransform;
+    private bool _hasPreviousContact;
 
 	private bool _hasShield;
 	private float _invulnerableTimer;
@@ -58,6 +62,10 @@ public partial class Player : CharacterBody2D
     private int _waterExtinguishes;
     public bool MagnetActive => _magnetTimer > 0f;
     public int CoinMultiplier => _doubleCoinsTimer > 0f ? 2 : 1;
+    public override void _ExitTree()
+    {
+        if(_windSfx!=null) { _windSfx.Stop(); _windSfx.Stream=null; }
+    }
 
 	private int _score;
 
@@ -292,12 +300,17 @@ public partial class Player : CharacterBody2D
 		if (_levelGenerator != null)
 			_hud?.UpdateRunStats(_levelGenerator.Lap, _levelGenerator.TotalDistance);
 
-		UpdateMovement(dt);
 		UpdateCamera(dt);
 		UpdateInvulnerability(dt);
 		UpdateHeating(dt);
-        UpdateCubeVisuals();
 	}
+    public override void _PhysicsProcess(double delta)
+    {
+        if(_state!=State.Playing || _contactShape==null) return;
+        // Player precedes the projectile pool in scene order; both use this tick's poses.
+        _previousContactTransform=_contactShape.GlobalTransform; _hasPreviousContact=true;
+        UpdateMovement((float)delta); UpdateCubeVisuals();
+    }
 
 	private void UpdateMovement(float dt)
 	{
@@ -367,6 +380,8 @@ public partial class Player : CharacterBody2D
         float scale = _skinSpriteScale*Mathf.Lerp(1f,0.83f,burn)*(1f+_visualKick);
         float stretch = ratio*0.055f+Mathf.Sin(_fxClock*4.2f)*ratio*0.012f;
         _characterSprite.Scale = new Vector2(scale*(1f-stretch),scale*(1f+stretch));
+        // The silhouette tumbles and bobs; its physical body follows the same transform.
+        SyncCollisionVisual(_bodyShape); SyncCollisionVisual(_contactShape);
         if (_shieldVisual != null && _hasShield)
         {
             _shieldVisual.Rotation = Mathf.Sin(_fxClock*0.9f)*0.10f;
@@ -376,10 +391,26 @@ public partial class Player : CharacterBody2D
     public void ApplySkin()
     {
         if (_characterSprite == null) return;
-        _characterSprite.Texture = GD.Load<Texture2D>(SaveData.SkinPath(SaveData.SelectedSkin));
-        _skinSpriteScale = NormalSpriteScale * GD.Load<Texture2D>(SaveData.SkinPath(0)).GetWidth() / Mathf.Max(1,_characterSprite.Texture.GetWidth());
+        var character=CharacterCatalog.Get(SaveData.SelectedSkin);
+        _characterSprite.Texture = CharacterCatalog.Texture(character.Id);
+        _skinSpriteScale = character.DisplayHeight / _characterSprite.Texture.GetHeight();
         _characterSprite.Scale = Vector2.One * _skinSpriteScale;
+        _bodyShape=GetNode<CollisionShape2D>("collision");
+        _contactShape=GetNode<CollisionShape2D>("Hitbox/hitbox");
+        _bodyShape.Shape=character.CreateBodyShape();
+        _contactShape.Shape=_bodyShape.Shape;
+        _bodyShape.Position=_contactShape.Position=Vector2.Zero;
+        _bodyShape.Scale=_contactShape.Scale=Vector2.One;
+        _bodyShape.Rotation=_contactShape.Rotation=0f;
+        _hasPreviousContact=false;
         _characterSprite.Material = new CanvasItemMaterial { LightMode = CanvasItemMaterial.LightModeEnum.Unshaded };
+    }
+    private void SyncCollisionVisual(CollisionShape2D shape)
+    {
+        if(shape==null) return;
+        shape.Position=_characterSprite.Position;
+        shape.Rotation=_characterSprite.Rotation;
+        shape.Scale=_characterSprite.Scale/_skinSpriteScale;
     }
     private void UpdateLantern(float dt)
     {
@@ -570,6 +601,38 @@ public partial class Player : CharacterBody2D
 		}
 		Die();
 	}
+    public bool ReceiveProjectileHit()
+    {
+        if(_state!=State.Playing || _levelGenerator?.IsGameActive!=true) return false;
+        HitObstacle(); return true;
+    }
+    public bool ProjectileSweepHits(Vector2 from,Vector2 to,float radius)
+    {
+        if(_contactShape==null) return false;
+        Transform2D inverse=_contactShape.GlobalTransform.AffineInverse();
+        Vector2 a=(_hasPreviousContact ? _previousContactTransform.AffineInverse() : inverse)*from,b=inverse*to;
+        float localRadius=radius/Mathf.Max(0.1f,Mathf.Min(_contactShape.GlobalScale.X,_contactShape.GlobalScale.Y));
+        if(_contactShape.Shape is CapsuleShape2D capsule)
+        {
+            float half=capsule.Height*0.5f-capsule.Radius;
+            return SegmentDistance(a,b,new Vector2(0,-half),new Vector2(0,half))<=capsule.Radius+localRadius;
+        }
+        Vector2[] polygon;
+        if(_contactShape.Shape is ConvexPolygonShape2D convex) polygon=convex.Points;
+        else if(_contactShape.Shape is RectangleShape2D rect)
+        { Vector2 h=rect.Size/2; polygon=new[] { -h,new Vector2(h.X,-h.Y),h,new Vector2(-h.X,h.Y) }; }
+        else return false;
+        if(Geometry2D.IsPointInPolygon(a,polygon)||Geometry2D.IsPointInPolygon(b,polygon)) return true;
+        for(int i=0;i<polygon.Length;i++)
+            if(SegmentDistance(a,b,polygon[i],polygon[(i+1)%polygon.Length])<=localRadius) return true;
+        return false;
+    }
+    private static float SegmentDistance(Vector2 a,Vector2 b,Vector2 c,Vector2 d)
+    {
+        if(Geometry2D.SegmentIntersectsSegment(a,b,c,d).VariantType!=Variant.Type.Nil) return 0;
+        return Mathf.Min(Mathf.Min(a.DistanceTo(Geometry2D.GetClosestPointToSegment(a,c,d)),b.DistanceTo(Geometry2D.GetClosestPointToSegment(b,c,d))),
+            Mathf.Min(c.DistanceTo(Geometry2D.GetClosestPointToSegment(c,a,b)),d.DistanceTo(Geometry2D.GetClosestPointToSegment(d,a,b))));
+    }
 
 	private void CollectPickup(Area2D area)
 	{

@@ -1,5 +1,19 @@
 # Нові ассети
 
+## Momentum / cave hazards — 14 жовтня 2026
+
+Інструмент: вбудований imagegen, прозорий фон. Фінальні PNG скопійовані у `crust-to-crust/Textures/ArtRefresh/`; оригінали генератора збережені. Текстури не перемальовуються кодом. Каталог використовує Godot AtlasTexture за непрозорими межами для узгоджених прев'ю та масштабу.
+
+Спільний промпт персонажів: production 2D sprite for a dark subterranean arcade game; isolated full-body character, front view, readable at 64 pixels tall, compact proportions, crafted painted dark fantasy game art with tactile basalt, worn copper and subtle cyan highlights. Transparent background, no floor, no cast shadow, no text or frame; centered upright body with transparent padding.
+
+- `hero_miner.png`: small cave miner in a worn copper helmet with cyan headlamp, dark padded suit, goggles, leather gloves and heavy boots; distinct hands and boots, arms close to body, not a cube or circle.
+- `hero_drillbot.png`: compact expedition robot, angular steel head, cyan visor eyes, riveted copper torso, short articulated mechanical arms and sturdy boots, distinct head/torso/hands/feet, no held weapon.
+- `hero_golem.png`: small living basalt golem, irregular dark stone plates, distinct blocky head, cyan crystal eyes, broad torso, short stone arms and feet, mineral veins in joints.
+- `shooter_drill.png`: side-view forgotten drilling sentry fixed into left cave wall, aimed right; rear basalt mounting plate, copper bolts and triangular brackets, worn mechanical head and barrel, tiny cyan charge aperture; painted tactile basalt and copper, transparent background, isolated full object, no text or frame.
+- `shooter_shell.png`: side-view magma shell creature rooted in left cave wall and facing right; rear basalt plate and thick orange-veined anchoring roots, layered obsidian shell, orange glowing opening; organic painted cave game art, warm amber core, transparent background, isolated full object, no text or frame.
+
+Болти та жаринки використовують уже наявні `obsidian_shard.png` та `magma_wheel.png` у малому масштабі; окремі дублікати растрових ресурсів не створювалися. Наведення, кільце заряду та приціл — геометричні індикатори Godot. Контури тіней отримуються один раз при завантаженні з alpha спрайтів, а не малюються як спільний квадрат.
+
 ## Core Journey — 14 жовтня 2026
 
 У цьому оновленні нові PNG не генерувалися. Використані існуючі базальт,

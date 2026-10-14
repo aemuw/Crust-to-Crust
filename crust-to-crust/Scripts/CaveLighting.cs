@@ -32,7 +32,7 @@ public static class CaveLighting
             {
                 styles[i] = new ShaderMaterial { Shader = i == 3 ? coreShader : rockShader };
                 styles[i].SetShaderParameter("hot_texture",i == 3 ? GameAssets.Core : GameAssets.HotRock);
-                styles[i].SetShaderParameter("uv_offset",new Vector2(section*0.137f,section*0.193f));
+                styles[i].SetShaderParameter("texture_origin",new Vector2(0,segment.Position.Y));
                 if (i < 3) styles[i].SetShaderParameter("edge_mode",i);
                 level.RockMaterials.Add(styles[i]); level.RockMaterialOwners.Add(segment);
             }

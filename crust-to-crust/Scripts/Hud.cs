@@ -6,13 +6,20 @@ public partial class Hud : CanvasLayer
     private Label _gameOverStats, _walletLabel, _speedLabel, _pauseStats;
     private Control _gameOverPanel, _startMenuPanel, _pauseOverlay, _shop;
     private Button _pauseButton, _resumeButton, _shopBack;
-    private readonly Button[] _shopItems = new Button[3], _skinItems = new Button[3];
+    private readonly Button[] _shopItems = new Button[3], _skinItems = new Button[CharacterCatalog.Count];
     private readonly Button[] _trailItems = new Button[4];
     private ProgressBar _heatBar;
     private StyleBoxFlat _heatFill;
     private ShaderMaterial _vignette;
     private TextureRect _menuHero;
     private LineEdit _seedInput;
+    private Control _settings;
+    private Control _settingsReturn;
+    private Control _shopReturn;
+    private Button _settingsBack, _buySkin;
+    private TextureRect _shopHero;
+    private Label _heroName;
+    private int _previewSkin;
     private Label _seedError;
     private ProgressBar _journeyBar;
     private Label _destinationLabel, _tutorialText;
@@ -30,7 +37,7 @@ public partial class Hud : CanvasLayer
     private Label _bonusLabel;
     private float _doubleBonus, _magnetBonus, _uiTicker, _shownDepth;
     private static bool _restartImmediately;
-    private static readonly Color Ink = new Color("0d1820"), Edge = new Color("334652"), Aqua = new Color("87ddd5");
+    private static readonly Color Ink = new Color("141719"), Edge = new Color("44463e"), Aqua = new Color("d8b477");
     [Signal] public delegate void StartRequestedEventHandler();
 
     public override void _Ready()
@@ -53,6 +60,7 @@ public partial class Hud : CanvasLayer
         BuildGameOver();
         BuildPauseMenu(root);
         BuildShop(root);
+        BuildSettings(root);
         GetNode<Button>("Control/StartMenuPanel/StartButton").GrabFocus();
         if (_restartImmediately)
         {
@@ -64,11 +72,11 @@ public partial class Hud : CanvasLayer
     {
         var theme = new Theme { DefaultFontSize = 18 };
         theme.SetColor("font_color","Label",new Color("d5e2e6"));
-        theme.SetStylebox("normal","Button",Card(new Color("162b35"),Edge,10));
-        theme.SetStylebox("hover","Button",Card(new Color("24434a"),Aqua,10));
-        theme.SetStylebox("pressed","Button",Card(new Color("10252d"),Aqua,10));
-        theme.SetStylebox("focus","Button",Card(new Color(0,0,0,0),Aqua,10));
-        theme.SetStylebox("panel","PanelContainer",Card(Ink,Edge,16));
+        theme.SetStylebox("normal","Button",Card(new Color("222928"),Edge,3));
+        theme.SetStylebox("hover","Button",Card(new Color("343d36"),Aqua,3));
+        theme.SetStylebox("pressed","Button",Card(new Color("1c231f"),Aqua,3));
+        theme.SetStylebox("focus","Button",Card(new Color(0,0,0,0),Aqua,3));
+        theme.SetStylebox("panel","PanelContainer",Card(Ink,Edge,4));
         return theme;
     }
     private static StyleBoxFlat Card(Color fill, Color edge, int radius)
@@ -125,54 +133,45 @@ public partial class Hud : CanvasLayer
     private void BuildMainMenu()
     {
         Clear(_startMenuPanel);
-        var backdrop = Art(_startMenuPanel,GD.Load<Texture2D>("res://Textures/ArtRefresh/cave_basalt.png"),Vector2.Zero);
-        backdrop.StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered;
-        backdrop.Modulate = new Color(0.23f,0.29f,0.35f);
+        var backdrop=Art(_startMenuPanel,GD.Load<Texture2D>("res://Textures/ArtRefresh/crystal_chasm.png"),Vector2.Zero);
+        backdrop.StretchMode=TextureRect.StretchModeEnum.KeepAspectCovered;
         backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        backdrop.Modulate=new Color(0.46f,0.55f,0.58f);
         FullShade(_startMenuPanel,0.42f);
-        var eyebrow = Text(_startMenuPanel,"ПОДОРОЖ КРІЗЬ ПЛАНЕТУ",16,Aqua);
-        eyebrow.AnchorLeft = 0.075f; eyebrow.AnchorRight = 0.075f; eyebrow.AnchorTop = 0.17f; eyebrow.AnchorBottom = 0.17f;
-        var title = Text(_startMenuPanel,"CRUST\nTO CRUST",72,Colors.White);
+        var title=Text(_startMenuPanel,"CRUST\nTO CRUST",82,new Color("eee5d2"));
         title.AddThemeFontOverride("font",GD.Load<Font>("res://Fonts/BebasNeue-Regular.ttf"));
-        title.AnchorLeft = 0.075f; title.AnchorRight = 0.075f; title.AnchorTop = 0.22f; title.AnchorBottom = 0.22f;
-        var description = Text(_startMenuPanel,"Пірнай у темряву. Знайди шлях.\nПройди крізь ядро та повернись.",21,new Color("b0c1c8"));
-        description.AnchorLeft = 0.075f; description.AnchorRight = 0.075f; description.AnchorTop = 0.45f; description.AnchorBottom = 0.45f;
-        _seedInput = new LineEdit { Name = "SeedInput", PlaceholderText = "Seed забігу (необов’язково)", MaxLength = 11 };
-        _startMenuPanel.AddChild(_seedInput);
-        _seedInput.AnchorLeft = 0.075f; _seedInput.AnchorRight = 0.40f; _seedInput.AnchorTop = 0.535f; _seedInput.AnchorBottom = 0.535f;
-        _seedInput.OffsetBottom = 32;
-        _seedError = Text(_startMenuPanel,"",14,new Color("ffb556"));
-        _seedError.AnchorLeft = 0.075f; _seedError.AnchorTop = 0.87f;
-        var start = Button(_startMenuPanel,"ПОЧАТИ ПАДІННЯ   →",StartRun,"StartButton");
-        start.AnchorLeft = 0.075f; start.AnchorRight = 0.40f; start.AnchorTop = 0.59f; start.AnchorBottom = 0.59f;
-        start.OffsetBottom = 54;
-        start.AddThemeStyleboxOverride("normal",Card(new Color("245b60"),Aqua,10));
-        var shop = Button(_startMenuPanel,"МАГАЗИН  /  СКІНИ",OpenShop);
-        shop.AnchorLeft = 0.075f; shop.AnchorRight = 0.40f; shop.AnchorTop = 0.59f; shop.AnchorBottom = 0.59f;
-        shop.OffsetTop = 66; shop.OffsetBottom = 114;
-        var learn = Button(_startMenuPanel,"ПРОЙТИ НАВЧАННЯ",() => { BeginTutorial(); StartRun(); });
-        learn.CustomMinimumSize = new Vector2(0,30); learn.AddThemeFontSizeOverride("font_size",15);
-        learn.AnchorLeft = 0.075f; learn.AnchorRight = 0.40f; learn.AnchorTop = 0.765f; learn.AnchorBottom = 0.765f; learn.OffsetBottom = 30;
-        var best = Text(_startMenuPanel,$"РЕКОРД  {Mathf.FloorToInt(SaveData.BestDistance):N0} м   /   МОНЕТИ  {SaveData.Wallet}",16,Aqua);
-        best.AnchorLeft = 0.075f; best.AnchorRight = 0.075f; best.AnchorTop = 0.85f; best.AnchorBottom = 0.85f;
-        var display = new PanelContainer(); _startMenuPanel.AddChild(display);
-        display.AnchorLeft = 0.52f; display.AnchorRight = 0.92f; display.AnchorTop = 0.16f; display.AnchorBottom = 0.79f;
-        display.AddThemeStyleboxOverride("panel",Card(new Color(0.06f,0.10f,0.14f,0.70f),Edge,24));
-        var content = new VBoxContainer(); display.AddChild(content);
-        var chapter = Text(content,"01  /  НА КРАЮ РОЗЛОМУ",15,Aqua); chapter.HorizontalAlignment = HorizontalAlignment.Center;
-        _menuHero = Art(content,GD.Load<Texture2D>(SaveData.SkinPath(SaveData.SelectedSkin)),new Vector2(0,245));
-        _menuHero.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-        var controls = Text(content,"A / D / лівий стік — рух\nМишка / правий стік — світло\nF / Y — ліхтар • ESC / START — пауза",16); controls.HorizontalAlignment = HorizontalAlignment.Center;
-        var footer = Text(_startMenuPanel,"ТЕПЛО • ГРАВІТАЦІЯ • ТЕМРЯВА",13,new Color("7d969f"));
-        footer.AnchorLeft = 0.075f; footer.AnchorRight = 0.075f; footer.AnchorTop = 0.92f; footer.AnchorBottom = 0.92f;
+        title.AnchorLeft=0.09f; title.AnchorTop=0.12f;
+        var start=Button(_startMenuPanel,"ГРАТИ",StartRun,"StartButton");
+        var characters=Button(_startMenuPanel,"ПЕРСОНАЖІ",OpenShop);
+        var settings=Button(_startMenuPanel,"НАЛАШТУВАННЯ",()=>OpenSettings(_startMenuPanel));
+        int index=0;
+        foreach(var button in new[] { start,characters,settings })
+        {
+            button.AnchorLeft=0.09f; button.AnchorRight=0.40f;
+            button.AnchorTop=0.48f; button.AnchorBottom=0.48f;
+            button.OffsetTop=index*59; button.OffsetBottom=index*59+48;
+            button.Alignment=HorizontalAlignment.Left;
+            index++;
+        }
+        start.AddThemeStyleboxOverride("normal",Card(new Color("4b4d32"),Aqua,3));
+        var halo=Art(_startMenuPanel,GameAssets.Halo,Vector2.Zero);
+        halo.AnchorLeft=0.48f; halo.AnchorRight=0.93f; halo.AnchorTop=0.16f; halo.AnchorBottom=0.85f;
+        halo.Modulate=new Color(0.28f,0.58f,0.56f,0.65f);
+        _menuHero=Art(_startMenuPanel,CharacterCatalog.Texture(SaveData.SelectedSkin),Vector2.Zero);
+        _menuHero.AnchorLeft=0.58f; _menuHero.AnchorRight=0.84f; _menuHero.AnchorTop=0.29f; _menuHero.AnchorBottom=0.69f;
+        var best=Text(_startMenuPanel,$"{Mathf.FloorToInt(SaveData.BestDistance):N0} м  ·  рекорд",16,new Color("b3b9ab"));
+        best.AnchorLeft=0.09f; best.AnchorTop=0.88f;
+        var wallet=Text(_startMenuPanel,$"{SaveData.Wallet}  монет",16,Aqua);
+        wallet.AnchorLeft=0.75f; wallet.AnchorTop=0.88f;
     }
+
     public void StartRun()
     {
         if (_started) return;
         var level = GetParent() as LevelGenerator;
         if (!string.IsNullOrWhiteSpace(_seedInput?.Text))
         {
-            if (!int.TryParse(_seedInput.Text.Trim(),out int seed)) { _seedError.Text = "Введи ціле число від −2147483648 до 2147483647."; return; }
+            if (!int.TryParse(_seedInput.Text.Trim(),out int seed)) { _seedError.Text = "Потрібне ціле число."; OpenSettings(_startMenuPanel); _seedInput.GetParent<Control>().Show(); _seedInput.GrabFocus(); return; }
             level?.SetRunSeed(seed);
         }
         else if (level != null) level.SetRunSeed(level.RunSeed);
@@ -187,20 +186,16 @@ public partial class Hud : CanvasLayer
     }
     private void BuildGameOver()
     {
-        Clear(_gameOverPanel); FullShade(_gameOverPanel,0.80f);
-        var card = new Panel(); _gameOverPanel.AddChild(card);
-        card.AddThemeStyleboxOverride("panel",Card(Ink,Edge,18));
-        card.AnchorLeft = 0.5f; card.AnchorRight = 0.5f; card.AnchorTop = 0.5f; card.AnchorBottom = 0.5f;
-        card.OffsetLeft = -280; card.OffsetRight = 280; card.OffsetTop = -330; card.OffsetBottom = 330;
-        card.MouseFilter = Control.MouseFilterEnum.Ignore;
-        PlaceEnd(Text(_gameOverPanel,"КІНЕЦЬ ЗАБІГУ",14,Aqua),-306,-280);
-        PlaceEnd(Text(_gameOverPanel,"Ще одна спроба?",36,Colors.White),-268,-210);
-        _gameOverStats = Text(_gameOverPanel,"",18); PlaceEnd(_gameOverStats,-196,36);
-        PlaceEnd(Button(_gameOverPanel,"НОВИЙ ЗАБІГ",Restart,"RestartButton"),62,112);
-        PlaceEnd(Button(_gameOverPanel,"ПОВТОРИТИ ЦЕЙ SEED",() => { LevelGenerator.RequestedSeed = (GetParent() as LevelGenerator)?.RunSeed; Reload(true); },"ReplaySeedButton"),124,174);
-        PlaceEnd(Button(_gameOverPanel,"МАГАЗИН / СКІНИ",OpenShop),186,236);
-        PlaceEnd(Button(_gameOverPanel,"ГОЛОВНЕ МЕНЮ",() => Reload(false)),248,298);
+        Clear(_gameOverPanel); FullShade(_gameOverPanel,0.88f);
+        PlaceEnd(Text(_gameOverPanel,"ЗАБІГ ЗАВЕРШЕНО",30,new Color("eee5d2")),-250,-196);
+        _gameOverStats=Text(_gameOverPanel,"",19); PlaceEnd(_gameOverStats,-174,12);
+        PlaceEnd(Button(_gameOverPanel,"ЩЕ РАЗ",Restart,"RestartButton"),38,90);
+        PlaceEnd(Button(_gameOverPanel,"ПЕРСОНАЖІ",OpenShop),104,152);
+        PlaceEnd(Button(_gameOverPanel,"МЕНЮ",()=>Reload(false)),166,214);
+        var seed=Button(_gameOverPanel,"Повторити маршрут",()=>{ LevelGenerator.RequestedSeed=(GetParent() as LevelGenerator)?.RunSeed; Reload(true); },"ReplaySeedButton");
+        seed.AddThemeFontSizeOverride("font_size",14); PlaceEnd(seed,230,268);
     }
+
     private static void PlaceEnd(Control control, float top, float bottom)
     {
         control.AnchorLeft = 0.5f; control.AnchorRight = 0.5f; control.AnchorTop = 0.5f; control.AnchorBottom = 0.5f;
@@ -234,7 +229,7 @@ public partial class Hud : CanvasLayer
         root.AddChild(_tutorialPanel); Text(_tutorialPanel,"НАВЧАННЯ",13,Aqua);
         _tutorialText = Text(_tutorialPanel,"",16); _tutorialText.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         Button(_tutorialPanel,"ПРОПУСТИТИ",FinishTutorial);
-        _hintLabel = Text(root,"A / D — рух   •   Мишка — ліхтар / F — вимкнути   •   Вода / термокапсули охолоджують • Ланцюжки монет підказують обхід",17);
+        _hintLabel = Text(root,"A / D · рух     Мишка · світло     F · ліхтар     Esc · пауза",16);
         _hintLabel.AnchorRight = 1; _hintLabel.AnchorTop = 1; _hintLabel.AnchorBottom = 1;
         _hintLabel.OffsetTop = -48; _hintLabel.OffsetBottom = -18;
         _hintLabel.HorizontalAlignment = HorizontalAlignment.Center; _hintLabel.Hide();
@@ -249,29 +244,55 @@ public partial class Hud : CanvasLayer
     }
     private void BuildPauseMenu(Control root)
     {
-        _pauseButton = Button(root,"Ⅱ   ESC",TogglePause); _pauseButton.Hide();
-        _pauseButton.AnchorLeft = 1; _pauseButton.AnchorRight = 1;
-        _pauseButton.OffsetLeft = -134; _pauseButton.OffsetRight = -24; _pauseButton.OffsetTop = 20; _pauseButton.OffsetBottom = 62;
-        _pauseOverlay = new Control { Name = "PauseOverlay", Visible = false }; root.AddChild(_pauseOverlay);
-        _pauseOverlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); FullShade(_pauseOverlay,0.84f);
-        var box = CenterCard(_pauseOverlay,500);
-        Text(box,"CRUST TO CRUST / ПАУЗА",14,Aqua).HorizontalAlignment = HorizontalAlignment.Center;
-        Text(box,"Переведи подих",36,Colors.White).HorizontalAlignment = HorizontalAlignment.Center;
-        _pauseStats = Text(box,"",18); _pauseStats.HorizontalAlignment = HorizontalAlignment.Center;
-        _resumeButton = Button(box,"ПРОДОВЖИТИ   →",TogglePause);
-        Button(box,"ПОЧАТИ ЗНОВУ",Restart);
-        Button(box,"ГОЛОВНЕ МЕНЮ",() => Reload(false));
-        Text(box,"ЗВУК",13,Aqua);
-        Volume(box,"Музика",SaveData.MusicVolume,v => SaveData.MusicVolume = v);
-        Volume(box,"Ефекти",SaveData.SfxVolume,v => SaveData.SfxVolume = v);
-        Text(box,"КОМФОРТ",13,Aqua);
-        Volume(box,"Тряска",SaveData.CameraShake,v => SaveData.CameraShake = v);
-        Volume(box,"Спалахи",SaveData.FlashIntensity,v => SaveData.FlashIntensity = v);
-        var lightMode = new CheckButton { Text = "Економне світло (3 джерела)" };
-        box.AddChild(lightMode); lightMode.ButtonPressed = SaveData.EconomyLighting;
-        lightMode.Toggled += low => { SaveData.EconomyLighting = low; SaveData.Save(); if (GetParent() is LevelGenerator level) level.CrystalLightBudget = low ? 3 : 6; };
-        Text(box,"Мишка / правий стік — світло. ESC / START — гра.",15,new Color("93aab5")).HorizontalAlignment = HorizontalAlignment.Center;
+        _pauseButton=Button(root,"Ⅱ",TogglePause); _pauseButton.Hide();
+        _pauseButton.AnchorLeft=1; _pauseButton.AnchorRight=1;
+        _pauseButton.OffsetLeft=-76; _pauseButton.OffsetRight=-24; _pauseButton.OffsetTop=20; _pauseButton.OffsetBottom=68;
+        _pauseOverlay=new Control { Name="PauseOverlay",Visible=false }; root.AddChild(_pauseOverlay);
+        _pauseOverlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); FullShade(_pauseOverlay,0.82f);
+        var box=CenterCard(_pauseOverlay,380);
+        Text(box,"ПАУЗА",32,new Color("eee5d2")).HorizontalAlignment=HorizontalAlignment.Center;
+        _pauseStats=Text(box,"",16); _pauseStats.HorizontalAlignment=HorizontalAlignment.Center;
+        _resumeButton=Button(box,"ПРОДОВЖИТИ",TogglePause);
+        Button(box,"НАЛАШТУВАННЯ",()=>OpenSettings(_pauseOverlay));
+        Button(box,"МЕНЮ",()=>Reload(false));
     }
+    private void BuildSettings(Control root)
+    {
+        _settings=new Control { Name="Settings",Visible=false }; root.AddChild(_settings);
+        _settings.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); FullShade(_settings,0.96f);
+        var box=CenterCard(_settings,480);
+        Text(box,"НАЛАШТУВАННЯ",28,new Color("eee5d2"));
+        Volume(box,"Музика",SaveData.MusicVolume,v=>SaveData.MusicVolume=v);
+        Volume(box,"Ефекти",SaveData.SfxVolume,v=>SaveData.SfxVolume=v);
+        Volume(box,"Тряска",SaveData.CameraShake,v=>SaveData.CameraShake=v);
+        Volume(box,"Спалахи",SaveData.FlashIntensity,v=>SaveData.FlashIntensity=v);
+        var light=new CheckButton { Text="Економне світло",ButtonPressed=SaveData.EconomyLighting };
+        box.AddChild(light);
+        light.Toggled+=low=>{ SaveData.EconomyLighting=low; if(GetParent() is LevelGenerator level) level.CrystalLightBudget=low ? 3 : 6; };
+        var advanced=new VBoxContainer { Visible=false }; box.AddChild(advanced);
+        var more=Button(box,"Маршрут і керування",()=>advanced.Visible=!advanced.Visible);
+        box.MoveChild(more,box.GetChildCount()-2);
+        Text(advanced,"A / D · рух    Мишка · світло\nF · ліхтар    Esc · пауза",15);
+        Text(advanced,"Геймпад: лівий стік · рух, правий · світло\nY · ліхтар, Start · пауза, B · назад",14);
+        _seedInput=new LineEdit { Name="SeedInput",PlaceholderText="Seed маршруту",MaxLength=11 };
+        advanced.AddChild(_seedInput);
+        _seedError=Text(advanced,"",14,new Color("ffb556"));
+        Button(advanced,"Навчання",()=>{ CloseSettings(); BeginTutorial(); StartRun(); });
+        _settingsBack=Button(box,"НАЗАД",CloseSettings);
+    }
+    private void OpenSettings(Control from)
+    {
+        _settingsReturn=from; from.Hide(); _settings.Show();
+        _seedInput.Editable=!_started;
+        _settingsBack.GrabFocus();
+    }
+    private void CloseSettings()
+    {
+        SaveData.Save(); _settings.Hide(); _settingsReturn?.Show();
+        if(_started) _resumeButton.GrabFocus();
+        else GetNode<Button>("Control/StartMenuPanel/StartButton").GrabFocus();
+    }
+
     private static void Volume(VBoxContainer box, string caption, float value, System.Action<float> apply)
     {
         var row = new HBoxContainer(); box.AddChild(row);
@@ -282,71 +303,85 @@ public partial class Hud : CanvasLayer
     }
     private void BuildShop(Control root)
     {
-        _shop = new Control { Name = "Shop", Visible = false }; root.AddChild(_shop);
-        _shop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); FullShade(_shop,0.96f);
-        var box = CenterCard(_shop,980);
-        var heading = new HBoxContainer(); box.AddChild(heading);
-        Text(heading,"СПОРЯДЖЕННЯ / СКІНИ",26,Colors.White).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        _walletLabel = Text(heading,"",21,Aqua);
-        Text(box,"ПОКРАЩЕННЯ — ЗБЕРІГАЮТЬСЯ МІЖ ЗАБІГАМИ",13,new Color("91a8b1"));
-        var upgrades = new HBoxContainer(); box.AddChild(upgrades); upgrades.AddThemeConstantOverride("separation",12);
-        for (int i = 0; i < 3; i++)
+        _shop=new Control { Name="CharacterShop",Visible=false }; root.AddChild(_shop);
+        _shop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); FullShade(_shop,0.97f);
+        var box=CenterCard(_shop,640);
+        var header=new HBoxContainer(); box.AddChild(header);
+        Text(header,"МАЙСТЕРНЯ",28,new Color("eee5d2")).SizeFlagsHorizontal=Control.SizeFlags.ExpandFill;
+        _walletLabel=Text(header,"",19,Aqua);
+        var tabs=new TabContainer(); box.AddChild(tabs);
+        var characters=new HBoxContainer { Name="Персонажі" }; tabs.AddChild(characters);
+        characters.AddThemeConstantOverride("separation",24);
+        var selection=new VBoxContainer { CustomMinimumSize=new Vector2(240,0) }; characters.AddChild(selection);
+        for(int i=0;i<CharacterCatalog.Count;i++)
         {
-            int item = i; _shopItems[i] = Button(upgrades,"",() => { SaveData.Buy(item); RefreshShop(); });
-            _shopItems[i].SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            _shopItems[i].CustomMinimumSize = new Vector2(0,84); _shopItems[i].AddThemeFontSizeOverride("font_size",16);
+            int id=i;
+            _skinItems[i]=Button(selection,CharacterCatalog.Get(i).Name,()=>{ _previewSkin=id; RefreshShop(); });
+            _skinItems[i].Alignment=HorizontalAlignment.Left;
         }
-        Text(box,"СКІНИ — ЛИШЕ ВИГЛЯД, БЕЗ ЗМІНИ ФІЗИКИ",13,new Color("91a8b1"));
-        var skins = new HBoxContainer(); box.AddChild(skins); skins.AddThemeConstantOverride("separation",12);
-        string[] skinNames = { "БАЗАЛЬТ", "КРИЖАНИЙ КВАРЦ", "ЖАР ОБСИДІАНУ" };
-        for (int i = 0; i < 3; i++)
+        var preview=new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; characters.AddChild(preview);
+        _shopHero=Art(preview,CharacterCatalog.Texture(0),new Vector2(200,245));
+        _heroName=Text(preview,"",20); _heroName.HorizontalAlignment=HorizontalAlignment.Center;
+        _buySkin=Button(preview,"",()=>{
+            if(SaveData.SelectOrBuySkin(_previewSkin)) GetParent().GetNode<Player>("Player").ApplySkin();
+            RefreshShop();
+        });
+        var equipment=new VBoxContainer { Name="Спорядження" }; tabs.AddChild(equipment);
+        for(int i=0;i<3;i++)
         {
-            int skin = i;
-            var panel = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; skins.AddChild(panel);
-            var column = new VBoxContainer(); panel.AddChild(column);
-            Art(column,GD.Load<Texture2D>(SaveData.SkinPath(i)),new Vector2(0,108));
-            Text(column,skinNames[i],16).HorizontalAlignment = HorizontalAlignment.Center;
-            _skinItems[i] = Button(column,"",() => {
-                SaveData.SelectOrBuySkin(skin); GetParent().GetNode<Player>("Player").ApplySkin(); RefreshShop();
-            });
-            _skinItems[i].AddThemeFontSizeOverride("font_size",16);
+            int item=i; _shopItems[i]=Button(equipment,"",()=>{ SaveData.Buy(item); RefreshShop(); });
+            _shopItems[i].CustomMinimumSize=new Vector2(0,78);
         }
-        Text(box,"СЛІДИ ЗА МАЙСТЕРНІСТЬ",13,Aqua);
-        for (int i = 0; i < 4; i++)
+        var trails=new VBoxContainer { Name="Сліди" }; tabs.AddChild(trails);
+        for(int i=0;i<4;i++)
         {
-            int trail = i;
-            _trailItems[i] = Button(box,"",() => { SaveData.SelectTrail(trail); RefreshShop(); });
-            _trailItems[i].AddThemeFontSizeOverride("font_size",16);
+            int id=i; _trailItems[i]=Button(trails,"",()=>{ SaveData.SelectTrail(id); RefreshShop(); });
+            _trailItems[i].AddThemeFontSizeOverride("font_size",15);
         }
-        _shopBack = Button(box,"←  ПОВЕРНУТИСЬ  /  ESC / B",CloseShop);
+        _shopBack=Button(box,"НАЗАД",CloseShop);
     }
+
     private void RefreshShop()
     {
-        _walletLabel.Text = $"{SaveData.Wallet} МОНЕТ";
-        string[] names = {"ТЕПЛОІЗОЛЯЦІЯ","ОХОЛОДЖЕННЯ","ЛІХТАР"};
-        string[] details = {"Нагрів −12% / рівень","Захист від жару +2с / рівень","Дальність +15% / рівень"};
-        for (int i = 0; i < 3; i++)
+        _walletLabel.Text=$"{SaveData.Wallet} монет";
+        string[] names={"Теплоізоляція","Охолодження","Ліхтар"};
+        string[] effects={"Нагрів −12%","Захист +2 с","Дальність +15%"};
+        for(int i=0;i<3;i++)
         {
-            int level = SaveData.UpgradeLevel(i);
-            _shopItems[i].Text = $"{names[i]}  {level}/3\n{details[i]}\n" + (level == 3 ? "МАКСИМУМ" : $"{SaveData.Price(level)} МОНЕТ");
-            _shopItems[i].Disabled = level == 3 || SaveData.Wallet < SaveData.Price(level);
-            bool owned = SaveData.OwnsSkin(i);
-            _skinItems[i].Text = SaveData.SelectedSkin == i ? "ВИБРАНО" : owned ? "ОБРАТИ" : $"КУПИТИ / {SaveData.SkinPrice(i)} МОНЕТ";
-            _skinItems[i].Disabled = SaveData.SelectedSkin == i || (!owned && SaveData.Wallet < SaveData.SkinPrice(i));
+            int level=SaveData.UpgradeLevel(i);
+            _shopItems[i].Text=$"{names[i]}  {level}/3\n{effects[i]}  ·  "+(level==3 ? "Максимум" : $"{SaveData.Price(level)} монет");
+            _shopItems[i].Disabled=level==3 || SaveData.Wallet<SaveData.Price(level);
         }
-        _menuHero.Texture = GD.Load<Texture2D>(SaveData.SkinPath(SaveData.SelectedSkin));
-        string[] trails = {"ПОВІТРЯНИЙ","БУРШТИНОВИЙ — пройди ядро","КВАРЦОВИЙ — пройди коло","ВОДЯНИЙ — погаси вогонь 3 рази за забіг"};
-        for (int i = 0; i < 4; i++)
+        for(int i=0;i<CharacterCatalog.Count;i++)
         {
-            _trailItems[i].Text = (SaveData.SelectedTrail == i ? "✓  " : SaveData.OwnsTrail(i) ? "ОБРАТИ  " : "🔒  ") + trails[i];
-            _trailItems[i].Disabled = !SaveData.OwnsTrail(i);
+            _skinItems[i].Text=CharacterCatalog.Get(i).Name+(SaveData.SelectedSkin==i ? "  ✓" : "");
+            _skinItems[i].AddThemeColorOverride("font_color",_previewSkin==i ? Aqua : new Color("c6cec6"));
+        }
+        var character=CharacterCatalog.Get(_previewSkin);
+        _shopHero.Texture=CharacterCatalog.Texture(character.Id); _heroName.Text=character.Name;
+        _buySkin.Text=SaveData.SelectedSkin==character.Id ? "ВИБРАНО" : SaveData.OwnsSkin(character.Id) ? "ОБРАТИ" : $"КУПИТИ · {character.Price}";
+        _buySkin.Disabled=SaveData.SelectedSkin==character.Id || (!SaveData.OwnsSkin(character.Id) && SaveData.Wallet<character.Price);
+        _menuHero.Texture=CharacterCatalog.Texture(SaveData.SelectedSkin);
+        string[] trails={"Повітряний","Бурштиновий · пройди ядро","Кварцовий · пройди коло","Водяний · погаси вогонь 3 рази"};
+        for(int i=0;i<4;i++)
+        {
+            _trailItems[i].Text=(SaveData.SelectedTrail==i ? "✓  " : SaveData.OwnsTrail(i) ? "" : "·  ")+trails[i];
+            _trailItems[i].Disabled=!SaveData.OwnsTrail(i);
         }
     }
-    private void OpenShop() { RefreshShop(); _shop.Show(); _shopBack.GrabFocus(); }
+
+    private void OpenShop()
+    {
+        _shopReturn=_finished ? _gameOverPanel : _started ? _pauseOverlay : _startMenuPanel;
+        _shopReturn.Hide(); _previewSkin=SaveData.SelectedSkin;
+        RefreshShop(); _shop.Show(); _shopBack.GrabFocus();
+    }
     private void CloseShop()
     {
         _shop.Hide();
-        if (_finished) GetNode<Button>("Control/GameOverPanel/RestartButton").GrabFocus();
+        _shopReturn?.Show();
+        if(_started && !_finished) _resumeButton.GrabFocus();
+        else if (_finished) GetNode<Button>("Control/GameOverPanel/RestartButton").GrabFocus();
         else { BuildMainMenu(); GetNode<Button>("Control/StartMenuPanel/StartButton").GrabFocus(); }
     }
     private void TogglePause()
@@ -355,13 +390,14 @@ public partial class Hud : CanvasLayer
         SaveData.Save();
         GetTree().Paused = !GetTree().Paused;
         _pauseOverlay.Visible = GetTree().Paused; _pauseButton.Visible = !GetTree().Paused;
-        if (GetTree().Paused) { _pauseStats.Text = $"Глибина {Mathf.FloorToInt(_totalDistance):N0} м   /   Коло {_lap}   /   Монети {_coins}\nSeed {(GetParent() as LevelGenerator)?.RunSeed}"; _resumeButton.GrabFocus(); }
+        if (GetTree().Paused) { _pauseStats.Text = $"{Mathf.FloorToInt(_totalDistance):N0} м  ·  коло {_lap}  ·  {_coins} монет"; _resumeButton.GrabFocus(); }
         else { SaveData.Save(); GetViewport().GuiReleaseFocus(); }
     }
     public override void _UnhandledInput(InputEvent input)
     {
         if (input.IsEcho()) return;
-        if (_shop.Visible && (input.IsActionPressed(InputSetup.Back) || input.IsActionPressed(InputSetup.Pause)))
+        if (_settings.Visible && (input.IsActionPressed(InputSetup.Back) || input.IsActionPressed(InputSetup.Pause))) CloseSettings();
+        else if (_shop.Visible && (input.IsActionPressed(InputSetup.Back) || input.IsActionPressed(InputSetup.Pause)))
             CloseShop();
         else if (input.IsActionPressed(InputSetup.Pause)) TogglePause();
         else return;
@@ -369,7 +405,8 @@ public partial class Hud : CanvasLayer
     }
     public override void _Notification(int what)
     {
-        if (what == NotificationApplicationFocusOut && _started && !_finished && !GetTree().Paused) TogglePause();
+        if (what == NotificationApplicationFocusOut && _started && !_finished && !GetTree().Paused
+            && !DisplayServer.WindowGetFlag(DisplayServer.WindowFlags.NoFocus)) TogglePause();
     }
     private void BuildVignette(Control root)
     {
@@ -437,9 +474,9 @@ void fragment() {
         if (_finished) return; _finished = true;
         bool record = SaveData.SubmitRun(_totalDistance,_coins,_lap);
         string reason = cause == DeathCause.Overheat ? "ПЕРЕГРІВ" : "ЗІТКНЕННЯ";
-        string hint = cause == DeathCause.Overheat ? "Вода або термокапсула гасять вогонь. Шукай світлий струмінь.\nТеплоізоляція сповільнює нагрівання."
-            : "Рухайся за проходом між перешкодами.\nЩит поглинає один удар.";
-        _gameOverStats.Text = $"{reason}\n{Mathf.FloorToInt(_totalDistance):N0} м   /   КОЛО {_lap}\nЗІБРАНО {_coins} МОНЕТ\n" + (record ? "НОВИЙ РЕКОРД!" : $"РЕКОРД {Mathf.FloorToInt(SaveData.BestDistance):N0} м") + $"\nSeed {(GetParent() as LevelGenerator)?.RunSeed}\n\n" + hint;
+        string hint = cause == DeathCause.Overheat ? "Вода або термокапсула гасять вогонь."
+            : "Щит поглинає один удар.";
+        _gameOverStats.Text = $"{reason}\n\n{Mathf.FloorToInt(_totalDistance):N0} м  ·  {_coins} монет  ·  коло {_lap}\n" + (record ? "Новий рекорд\n" : "") + "\n" + hint;
         _pauseOverlay.Hide(); _pauseButton.Hide(); _heatLabel.Hide(); _heatBar.Hide(); _shieldLabel.Hide(); _hintLabel.Hide(); _bonusLabel.Hide();
         _journeyBar.Hide(); _destinationLabel.Hide(); _tutorialPanel.Hide(); _zoneLabel.Hide(); _coreBanner.Hide();
         _gameOverPanel.Show(); GetNode<Button>("Control/GameOverPanel/RestartButton").GrabFocus();

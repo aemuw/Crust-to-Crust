@@ -44,6 +44,14 @@ public partial class ShopSmoke : Node
             typeof(SaveData).GetField("_loaded", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, false);
             SaveData.Load();
             Check(SaveData.SelectedSkin == 2 && SaveData.OwnsSkin(1) && SaveData.OwnsSkin(2), "skin ownership and selection survive reload");
+            SaveData.CreditCoin(300);
+            for(int id=3;id<6;id++)
+            {
+                Check(SaveData.SelectOrBuySkin(id), "new character can be purchased: " + id);
+                typeof(SaveData).GetField("_loaded", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null,false);
+                SaveData.Load();
+                Check(SaveData.SelectedSkin==id && SaveData.OwnsSkin(id), "new character survives reload: " + id);
+            }
             GD.Print("SHOP SMOKE PASSED");
         }
         catch (Exception error) { GD.PushError(error.ToString()); code = 1; }

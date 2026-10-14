@@ -1,6 +1,6 @@
 using System;
 
-public enum EncounterKind { Slalom, Debris, CoinTrail, WaterApproach, Rest }
+public enum EncounterKind { Slalom, Debris, CoinTrail, WaterApproach, Rest, Sentry }
 public enum CaveZone { Basalt, Crystal, Magma, Core }
 
 /// <summary>Gameplay randomness is separate from rendering, wind, audio and frame count.</summary>
@@ -29,6 +29,7 @@ public sealed class RunDirector
     {
         EncounterKind choice = EncounterAt(index);
         if (choice == EncounterKind.Rest) return choice;
+        if(choice==EncounterKind.Debris && Sample(index,83)<0.45f) return EncounterKind.Sentry;
         if (zone == CaveZone.Crystal && choice == EncounterKind.Debris) return EncounterKind.Slalom;
         if ((zone == CaveZone.Magma || zone == CaveZone.Core) && choice == EncounterKind.CoinTrail && Sample(index,43) < 0.65f)
             return EncounterKind.WaterApproach;

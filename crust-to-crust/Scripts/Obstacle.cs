@@ -17,6 +17,7 @@ public partial class Obstacle : Area2D
     private float _appearTimer, _phase, _anchorX, _frequency, _amplitude, _spin, _driftVelocity, _dashTarget;
     private int _variant;
     private bool _dashStarted;
+    private int _dashCount;
     private LevelGenerator _level;
     private Camera2D _camera;
     private int _safeSide;
@@ -32,8 +33,7 @@ public partial class Obstacle : Area2D
         _shapes = new Shape2D[] { new CircleShape2D { Radius = 29 },new RectangleShape2D { Size = new Vector2(26,72) },
             new CircleShape2D { Radius = 49 },new CircleShape2D { Radius = 37 },
             new RectangleShape2D { Size = new Vector2(24,66) },new CircleShape2D { Radius = 24 } };
-        _shadow = new LightOccluder2D { Occluder = new OccluderPolygon2D {
-            Polygon = new[] { new Vector2(-26,-26),new Vector2(26,-26),new Vector2(26,26),new Vector2(-26,26) } } };
+        _shadow = new LightOccluder2D { Occluder = new OccluderPolygon2D { CullMode=OccluderPolygon2D.CullModeEnum.Disabled } };
         AddChild(_shadow);
         _glow = CaveLighting.Light(new Color("ff7028"),0.32f,0.40f,false); AddChild(_glow); _glow.Visible = false;
         _warning = new Label { Text = "!",Position = new Vector2(-10,0),MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -51,13 +51,14 @@ public partial class Obstacle : Area2D
     public void ConfigureVariant(int variant,float targetX = 0f,HazardMotion? motion = null)
     {
         _safeSide = 0;
-        _variant = Mathf.Clamp(variant,0,5); _phase = 0f; _dashStarted = false; _dashTarget = targetX;
+        _variant = Mathf.Clamp(variant,0,5); _phase = 0f; _dashStarted = false; _dashCount=0; _dashTarget = targetX;
         _anchorX = Position.X;
         HazardMotion profile = motion ?? SampleMotion(_level?.Director);
         _frequency = profile.Frequency; _amplitude = profile.Amplitude;
         _spin = profile.Spin; _driftVelocity = profile.Drift;
         _sprite.Texture = GameAssets.HazardTextures[_variant];
-        float canvas = _variant == 1 || _variant == 4 ? 103f : _variant == 2 ? 145f : _variant == 3 ? 103f : _variant == 5 ? 70f : 87f;
+        float canvas = HazardSilhouettes.CanvasSize(_variant);
+        _shadow.Occluder.Polygon = HazardSilhouettes.Outline(_variant);
         _sprite.Scale = Vector2.One*canvas/_sprite.Texture.GetWidth();
         _sprite.Position = Vector2.Zero; _sprite.Rotation = 0f;
         _sprite.Material = _variant >= 2 && _variant != 4 ? GameAssets.Unshaded : null;
@@ -81,7 +82,7 @@ public partial class Obstacle : Area2D
         if (_safeSide == 0 || _level == null) return true;
         _level.GetRockBounds(Position.Y,out float left,out float right);
         float lane = _level.SafeLaneAt(Position.Y);
-        if (!SafePassage.TryBounds(_safeSide,lane,_protectedRadius,left,right,out float min,out float max))
+        if (!SafePassage.TryBounds(_safeSide,lane,_protectedRadius,left,right,out float min,out float max,_level.Runner?.CollisionEnvelopeRadius??SafePassage.PlayerRadius))
         {
             SetDeferred("monitorable",false); Hide(); ProcessMode = ProcessModeEnum.Disabled;
             return false;
@@ -115,7 +116,7 @@ public partial class Obstacle : Area2D
                     : _anchorX + Mathf.Sin(_phase*_frequency*intensity)*_amplitude;
                 if (_variant == 5) x += Mathf.Sin(_phase*3.7f+1.3f)*35f;
                 Position = new Vector2(_safeSide == 0 ? Mathf.Clamp(x,-180,180) : x,Position.Y);
-                Rotation = _variant == 1 ? Mathf.Sin(_phase*1.65f)*0.70f : Rotation+(_variant == 0 ? _spin : _spin+3.5f)*dt;
+                Rotation = _variant == 1 ? Mathf.Sin(_phase*2.1f*intensity)*1.05f : Rotation+(_variant == 0 ? _spin : _spin+3.5f)*dt;
             }
             else if (_variant == 3)
             {
@@ -127,7 +128,8 @@ public partial class Obstacle : Area2D
             {
                 // Dash is triggered on approach, not at off-screen spawn time.
                 float playerY = _level?.Runner?.FixedY ?? -200f;
-                if (!_dashStarted && Position.Y - playerY <= speed * (WarningLeadSeconds + 0.25f))
+                float lead=MotionDifficulty>0.4f ? WarningLeadSeconds*2+0.8f : WarningLeadSeconds+0.25f;
+                if (!_dashStarted && Position.Y - playerY <= speed * lead)
                 {
                     _dashStarted = true; _phase = 0f;
                     if (_level != null) _dashTarget = _level.Runner?.Position.X ?? _dashTarget;
@@ -136,6 +138,11 @@ public partial class Obstacle : Area2D
                 {
                     Position = new Vector2(Mathf.MoveToward(Position.X,_dashTarget,360f*intensity*dt),Position.Y);
                     _warning.Hide(); Rotation += _spin*dt;
+                    if(MotionDifficulty>0.4f && _dashCount==0 && _phase>WarningLeadSeconds+0.25f && Position.Y-playerY>speed*(WarningLeadSeconds+0.12f))
+                    {
+                        _dashCount++; _phase=0f; _dashTarget=_level?.Runner?.Position.X??_dashTarget;
+                        _warning.Show();
+                    }
                 }
                 else if (_dashStarted) _warning.Modulate = new Color(1,1,1,1f-SaveData.FlashIntensity*0.225f*(1f-Mathf.Sin(_phase*22f)));
             }
@@ -161,5 +168,15 @@ public partial class Obstacle : Area2D
             Scale = _targetScale*Mathf.Clamp(ease,0,1.15f); Modulate = new Color(1,1,1,t);
         }
         if (Position.Y < -560f) { SetDeferred("monitorable",false); Hide(); ProcessMode = ProcessModeEnum.Disabled; }
+    }
+    public bool BlocksEscapeAt(float x,float seconds,float playerRadius)
+    {
+        float scroll=_variant==0 ? 0.88f : _variant==1 ? 1.08f : _variant==5 ? 1.28f : 1f;
+        float y=Position.Y-speed*scroll*seconds;
+        float radius=SafePassage.ColliderRadius(_variant)*_targetScale.X*SafePassage.AppearOvershoot;
+        if(Mathf.Abs(y-(_level?.Runner?.FixedY??-200))>radius+playerRadius+speed*0.04f) return false;
+        if(_safeSide!=0 && _level!=null)
+            return _safeSide*(x-_level.SafeLaneAt((_level.Runner?.FixedY??-200)+speed*seconds))>SafePassage.HalfWidth;
+        return Mathf.Abs(x-Position.X)<radius+playerRadius+_amplitude;
     }
 }

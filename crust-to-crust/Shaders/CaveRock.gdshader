@@ -1,7 +1,8 @@
 shader_type canvas_item;
 uniform sampler2D hot_texture : source_color, filter_linear, repeat_enable;
 uniform float warmth : hint_range(0.0, 1.0) = 0.0;
-uniform vec2 uv_offset = vec2(0.0);
+uniform vec2 texture_origin = vec2(0.0);
+uniform vec2 texture_period = vec2(960.0, 1440.0);
 uniform int edge_mode = 0;
 varying vec2 rock_position;
 varying vec4 rock_tint;
@@ -17,7 +18,9 @@ float edge(float y, bool left) {
     return left ? mix(295.0,320.0,f) : mix(285.0,320.0,f);
 }
 void fragment() {
-    vec2 uv = UV + uv_offset;
+    // Mirrored sampling is continuous even for painted, non-tileable source art.
+    // All slabs share logical cave coordinates, including across recycled sections.
+    vec2 uv = abs(fract((rock_position + texture_origin) / texture_period * 0.5) * 2.0 - 1.0);
     vec4 cold = texture(TEXTURE, uv);
     vec4 hot = texture(hot_texture, uv);
     float feather = 1.0;

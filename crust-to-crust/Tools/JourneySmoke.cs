@@ -116,6 +116,7 @@ public partial class JourneySmoke : Node
             if (existed) { using var file = FileAccess.Open(save, FileAccess.ModeFlags.Write); file.StoreBuffer(original); }
             else DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(save));
         }
+        await Wait(0.15f);
         GD.Print($"JOURNEY SMOKE: {_failures} failures"); GetTree().Quit(_failures == 0 ? 0 : 1);
     }
     private void DirectorTests()
@@ -152,6 +153,7 @@ public partial class JourneySmoke : Node
         var player = _level.GetNode<Player>("Player");
         var lamp = player.GetNode<PointLight2D>("MouseLantern");
         bool before = lamp.Enabled;
+        await Wait(0.1f); // Let focus settle after replacing the replay scene.
         GetViewport().PushInput(new InputEventJoypadButton { ButtonIndex = JoyButton.Y, Pressed = true });
         await Wait(0.1f);
         Check(lamp.Enabled != before, "controller Y toggles the lantern");

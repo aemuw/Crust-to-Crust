@@ -64,6 +64,12 @@ public partial class AudioManager : Node
         AddChild(_coreAccent);
 	}
     public void SetZone(CaveZone zone) => _zone = zone;
+    public override void _ExitTree()
+    {
+        // Release playback before a menu reload replaces the whole world.
+        if(_music!=null) { _music.Stop(); _music.Stream=null; }
+        if(_coreAccent!=null) { _coreAccent.Stop(); _coreAccent.Stream=null; }
+    }
     public void PlayCoreAccent() => _coreAccent?.Play();
     public override void _Process(double delta)
     {

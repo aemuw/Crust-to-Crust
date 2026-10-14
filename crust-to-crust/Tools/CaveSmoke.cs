@@ -26,6 +26,7 @@ public partial class CaveSmoke : Node
             var hud = level.GetNode<Hud>("HUD");
             hud.GetNode<Button>("Control/StartMenuPanel/StartButton").EmitSignal(Button.SignalName.Pressed);
             await Wait(2.8f);
+            for(int i=0;!level.IsGameActive && i<80;i++) await Wait(0.1f);
             level.StopFalling();
             var player = level.GetNode<Player>("Player");
             var hitbox = player.GetNode<Area2D>("Hitbox");
@@ -44,7 +45,7 @@ public partial class CaveSmoke : Node
             }
             float startingRotation = variants[0].Rotation;
             await Wait(1f);
-            Check(Mathf.Abs(variants[0].Rotation - startingRotation) > 0.15f, "boulder rolls while scrolling");
+            Check(Mathf.Abs(variants[0].Rotation - startingRotation) > 0.15f, $"boulder rolls while scrolling (rotation={variants[0].Rotation}, speed={variants[0].speed}, active={level.IsGameActive}, paused={GetTree().Paused})");
             Check(Mathf.Abs(variants[1].Rotation) > 0.2f, "obsidian shard sways");
             Check(Mathf.IsEqualApprox(variants[2].Position.X, starts[2].X), "crystal stays fixed horizontally");
             Check(variants[2].ZIndex < 0, "crystal is rendered behind the gameplay objects");
@@ -88,6 +89,9 @@ public partial class CaveSmoke : Node
             water.Visible = false;
             water.Monitorable = false;
             water.ProcessMode = ProcessModeEnum.Disabled;
+            // This fixture tests contact, not route suppression. Put the protected lane
+            // on the opposite wall so the generator deliberately keeps this block solid.
+            for(int seed=1;seed<100 && level.SafeLaneAt(player.FixedY)>-60;seed++) level.SetRunSeed(seed);
             hitbox.Monitoring = false;
             await Wait(0.15f);
             player.Position = new Vector2(220, player.FixedY);
@@ -97,6 +101,7 @@ public partial class CaveSmoke : Node
                 $"ordinary wall collisions remain lethal outside the waterfall approach (position={player.Position}, scale={player.Scale}, alive={player.GetNode<Sprite2D>("CharacterSprite").Visible}, paused={GetTree().Paused}, overlaps={hitbox.GetOverlappingAreas().Count})");
             GD.Print("CAVE SMOKE PASSED");
             level.Free();
+            await Wait(0.15f);
             GetTree().Quit();
         }
         catch (Exception error) { GD.PushError(error.ToString()); GetTree().Paused = false; GetTree().Quit(1); }
