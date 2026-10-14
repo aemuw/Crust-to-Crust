@@ -33,6 +33,7 @@ public static class InputSetup
 		Bind(MoveLeft, Key.A, Key.Left, JoyButton.DpadLeft, -1f);
 		Bind(MoveRight, Key.D, Key.Right, JoyButton.DpadRight, 1f);
         Action(ToggleLantern,Key.F,JoyButton.Y);
+        Add(ToggleLantern,new InputEventMouseButton { ButtonIndex=MouseButton.Left });
         Action(Pause,Key.Escape,JoyButton.Start); Action(Back,Key.Escape,JoyButton.B);
         Aim(AimLeft,JoyAxis.RightX,-1); Aim(AimRight,JoyAxis.RightX,1);
         Aim(AimUp,JoyAxis.RightY,-1); Aim(AimDown,JoyAxis.RightY,1);

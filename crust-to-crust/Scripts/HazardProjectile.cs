@@ -7,11 +7,13 @@ public partial class HazardProjectile : Area2D
     private Vector2 _velocity;
     private Sprite2D _sprite;
     private float _life;
+    private Color _tailColor;
     public ProjectilePath Path=>new(GlobalPosition,_velocity);
     public const float Radius=8f;
     public override void _Ready()
     {
         CollisionLayer=2; CollisionMask=0; Monitoring=false; Monitorable=false; AddToGroup("Obstacle");
+        Material=GameAssets.Unshaded;
         AddChild(new CollisionShape2D { Shape=new CircleShape2D { Radius=Radius } });
         _sprite=new Sprite2D { Material=GameAssets.Unshaded }; AddChild(_sprite);
         Deactivate();
@@ -23,6 +25,7 @@ public partial class HazardProjectile : Area2D
         float size=variant==0 ? 24f : 23f;
         _sprite.Scale=Vector2.One*size/_sprite.Texture.GetWidth();
         _sprite.Modulate=variant==1 ? new Color("ffb271") : new Color("b5faff");
+        _tailColor=_sprite.Modulate;
         Modulate=Colors.White;
         Visible=true; ProcessMode=ProcessModeEnum.Inherit; SetDeferred("monitorable",true);
     }
@@ -36,6 +39,7 @@ public partial class HazardProjectile : Area2D
         float dt=(float)delta; _life+=dt;
         Vector2 before=GlobalPosition;
         GlobalPosition+=(_velocity-new Vector2(0,_level.FallSpeed))*dt;
+        QueueRedraw();
         Rotation=(_velocity-new Vector2(0,_level.FallSpeed)).Angle()+Mathf.Pi/2;
         var player=_level.Runner;
         if(player!=null && player.GetNode<Area2D>("Hitbox").Monitoring &&
@@ -43,5 +47,11 @@ public partial class HazardProjectile : Area2D
         { Deactivate(); return; }
         Modulate=new Color(1,1,1,Mathf.Clamp((2.1f-_life)/0.2f,0,1));
         if(_life>2.1f || CaveViewport.PassedTop(this,24)) Deactivate();
+    }
+    public override void _Draw()
+    {
+        Color color=_tailColor; color.A=0.45f;
+        DrawLine(new Vector2(0,4),new Vector2(0,28),color,3,true);
+        color.A=0.13f; DrawLine(new Vector2(0,28),new Vector2(0,46),color,2,true);
     }
 }

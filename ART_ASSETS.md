@@ -68,6 +68,19 @@ blue-teal reflected light and painterly shadows, no objects/text.
 
 ## ArtRefresh — 14.10.2026
 
+Форми: три нові кубики (`cube_copper`, `cube_amethyst`, `cube_magma`), три кола
+(`circle_obsidian`, `circle_copper`, `circle_opal`) та три трикутники
+(`triangle_basalt`, `triangle_amber`, `triangle_ice`) створені окремими викликами
+вбудованого imagegen. Прозорі PNG збережені у `crust-to-crust/Textures/ArtRefresh/`.
+Набір промптів: [docs/shape-prompts-2026-10-14.md](docs/shape-prompts-2026-10-14.md).
+
+Наступні фігури — `bar_copper`, `bar_jade`, `diamond_cobalt`, `diamond_garnet`,
+`hex_bronze`, `hex_malachite`; поверхня — `surface_night`. Усі у
+`crust-to-crust/Textures/ArtRefresh/`. Вбудований imagegen, промпти:
+[docs/form-prompts-2026-10-14.md](docs/form-prompts-2026-10-14.md).
+PNG фігур мають прозорість, панорама непрозора. Альфа-шум за межами фігури
+ігнорується атласом; вихідні зображення не перезаписуються.
+
 ### Темний тунель: батарейка та нестабільна жеода
 
 Створено вбудованим imagegen, прозорі PNG у `crust-to-crust/Textures/ArtRefresh/`:

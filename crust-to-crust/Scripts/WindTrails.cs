@@ -46,8 +46,7 @@ public partial class WindTrails : Node2D
     }
     private static Color TrailColor(float alpha)
     {
-        Color color = SaveData.SelectedTrail == 1 ? new Color("ffb556") : SaveData.SelectedTrail == 2 ? new Color("bda5ff")
-            : SaveData.SelectedTrail == 3 ? new Color("79e3d5") : new Color("a6d4e8");
+        Color color = new Color("a6d4e8");
         color.A = alpha; return color;
     }
 }

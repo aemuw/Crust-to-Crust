@@ -174,6 +174,7 @@ public partial class LevelGenerator : Node2D
 		CacheTunnelNodes();
         CacheCollisionNodes();
         CaveLighting.Setup(this);
+        _surfaceRoot?.AddChild(new SurfacePresentation { Name="SurfacePresentation" });
         _lightDistances = new float[CrystalLights.Count];
         _selectedLights = new bool[CrystalLights.Count];
         _crystalZoneAlpha = new float[_tunnelCrystals.Count]; System.Array.Fill(_crystalZoneAlpha,1f);
@@ -271,6 +272,7 @@ public partial class LevelGenerator : Node2D
 
 	public void BeginFalling()
 	{
+        SetTunnelFade(1);
 		// Після входу кубика в шахту поверхневі обриви не повинні накладатися на секції тунелю.
 		if (_surfaceRoot != null)
 			_surfaceRoot.Visible = false;
@@ -292,6 +294,10 @@ public partial class LevelGenerator : Node2D
 	{
 		if (_tunnelSegmentsRoot != null) _tunnelSegmentsRoot.Visible = false;
 	}
+    public void SetTunnelFade(float alpha)
+    {
+        if(_tunnelSegmentsRoot!=null) _tunnelSegmentsRoot.Modulate=new Color(1,1,1,Mathf.Clamp(alpha,0,1));
+    }
 
 	public void RebaseEmergence()
 	{

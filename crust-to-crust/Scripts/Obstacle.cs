@@ -24,6 +24,7 @@ public partial class Obstacle : Area2D
     private float _protectedRadius;
     private float _scrollFactor=1f, _retireClock;
     private bool _retiring;
+    private float _lateralVelocity;
     private readonly Sprite2D[] _pieces=new Sprite2D[4];
     private readonly Vector2[] _pieceOrigins=new Vector2[4];
     private const float AppearDuration = 0.35f;
@@ -58,6 +59,7 @@ public partial class Obstacle : Area2D
         _safeSide = 0;
         _variant = Mathf.Clamp(variant,0,5); _phase = 0f; _dashStarted = false; _dashCount=0; _dashTarget = targetX;
         _retiring=false; _retireClock=0;
+        _lateralVelocity=0;
         foreach(var piece in _pieces) piece.Hide();
         _sprite.Show(); _collision.SetDeferred("disabled",false); _glow.Energy=0.4f;
         _scrollFactor=DefaultScroll;
@@ -105,6 +107,7 @@ public partial class Obstacle : Area2D
             return false;
         }
         float x = SafePassage.Clamp(Position.X,min,max);
+        if(x!=Position.X) _lateralVelocity=-_lateralVelocity*0.45f;
         if (_variant == 3 && x != Position.X)
             _driftVelocity = x <= min ? Mathf.Abs(_driftVelocity) : -Mathf.Abs(_driftVelocity);
         Position = new Vector2(x,Position.Y);
@@ -118,7 +121,21 @@ public partial class Obstacle : Area2D
     }
     public override void _Process(double delta)
     {
-        float dt = (float)delta;
+        // Small deterministic steps keep inertia, bounces and warning timing stable at low FPS.
+        float remaining=Mathf.Max(0,(float)delta);
+        while(remaining>0 && Visible)
+        {
+            float step=Mathf.Min(remaining,0.01f); StepMotion(step); remaining-=step;
+        }
+    }
+    private float MoveWithInertia(float target,float dt,float maximum,float acceleration)
+    {
+        float wanted=Mathf.Clamp((target-Position.X)*5,-maximum,maximum);
+        _lateralVelocity=Mathf.MoveToward(_lateralVelocity,wanted,acceleration*dt);
+        return Position.X+_lateralVelocity*dt;
+    }
+    private void StepMotion(float dt)
+    {
         if(_retiring)
         {
             Position+=new Vector2(0,-speed*_scrollFactor*dt); _retireClock+=dt;
@@ -146,13 +163,14 @@ public partial class Obstacle : Area2D
                 float x = _safeSide != 0 ? center + _safeSide * (92f + 22f*Mathf.Sin(_phase*_frequency*intensity))
                     : _anchorX + Mathf.Sin(_phase*_frequency*intensity)*_amplitude;
                 if (_variant == 5) x += Mathf.Sin(_phase*3.7f+1.3f)*35f;
-                Position = new Vector2(_safeSide == 0 ? Mathf.Clamp(x,-180,180) : x,Position.Y);
+                float moved=MoveWithInertia(x,dt,_variant==5 ? 310*intensity : 230*intensity,_variant==0 ? 520 : 950);
+                Position = new Vector2(_safeSide == 0 ? Mathf.Clamp(moved,-180,180) : moved,Position.Y);
                 Rotation = _variant == 1 ? Mathf.Sin(_phase*2.1f*intensity)*1.05f : Rotation+(_variant == 0 ? _spin : _spin+3.5f)*dt;
             }
             else if (_variant == 3)
             {
                 float x = Position.X + _driftVelocity*dt*intensity;
-                if (_safeSide == 0 && (x < -180f || x > 180f)) { _driftVelocity = -_driftVelocity; x = Mathf.Clamp(x,-180,180); }
+                if (_safeSide == 0 && (x < -180f || x > 180f)) { _driftVelocity = -_driftVelocity*0.92f; x = Mathf.Clamp(x,-180,180); }
                 Position = new Vector2(x,Position.Y); Rotation += (_driftVelocity>0 ? 1 : -1)*5.5f*dt;
             }
             else if (_variant == 4)
@@ -167,7 +185,7 @@ public partial class Obstacle : Area2D
                 }
                 if (_dashStarted && _phase > WarningLeadSeconds)
                 {
-                    Position = new Vector2(Mathf.MoveToward(Position.X,_dashTarget,360f*intensity*dt),Position.Y);
+                    Position = new Vector2(MoveWithInertia(_dashTarget,dt,360f*intensity,1500),Position.Y);
                     _warning.Hide(); Rotation += _spin*dt;
                     if(MotionDifficulty>0.4f && _dashCount==0 && _phase>WarningLeadSeconds+0.25f && Position.Y-playerY>speed*(WarningLeadSeconds+0.12f))
                     {

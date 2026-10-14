@@ -21,6 +21,12 @@ public partial class Hud : CanvasLayer
     private Control _shopReturn;
     private Button _settingsBack, _buySkin, _unlockForm;
     private TextureRect _shopHero;
+    private readonly Label[] _skinLabels=new Label[CharacterCatalog.Count];
+    private OptionButton _formFilter;
+    private TrailPreview _trailPreview;
+    private PanelContainer _shopCard;
+    private GridContainer _skinGrid,_equipmentGrid;
+    private ScrollContainer _skinScroll;
     private Label _heroName;
     private int _previewSkin;
     private Label _seedError;
@@ -242,7 +248,7 @@ public partial class Hud : CanvasLayer
         root.AddChild(_tutorialPanel); Text(_tutorialPanel,"НАВЧАННЯ",13,Aqua);
         _tutorialText = Text(_tutorialPanel,"",16); _tutorialText.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         Button(_tutorialPanel,"ПРОПУСТИТИ",FinishTutorial);
-        _hintLabel = Text(root,"A / D · рух     Мишка · світло     F · ліхтар     Esc · пауза",16);
+        _hintLabel = Text(root,"A / D · рух     Мишка · напрям світла     ЛКМ · ліхтар     Esc · пауза",16);
         _hintLabel.AnchorRight = 1; _hintLabel.AnchorTop = 1; _hintLabel.AnchorBottom = 1;
         _hintLabel.OffsetTop = -48; _hintLabel.OffsetBottom = -18;
         _hintLabel.HorizontalAlignment = HorizontalAlignment.Center; _hintLabel.Hide();
@@ -285,7 +291,7 @@ public partial class Hud : CanvasLayer
         var advanced=new VBoxContainer { Visible=false }; box.AddChild(advanced);
         var more=Button(box,"Маршрут і керування",()=>advanced.Visible=!advanced.Visible);
         box.MoveChild(more,box.GetChildCount()-2);
-        Text(advanced,"A / D · рух    Мишка · світло\nF · ліхтар    Esc · пауза",15);
+        Text(advanced,"A / D · рух    Мишка · напрям світла\nЛКМ · ліхтар    Esc · пауза",15);
         Text(advanced,"Геймпад: лівий стік · рух, правий · світло\nY · ліхтар, Start · пауза, B · назад",14);
         _seedInput=new LineEdit { Name="SeedInput",PlaceholderText="Seed маршруту",MaxLength=11 };
         advanced.AddChild(_seedInput);
@@ -317,26 +323,43 @@ public partial class Hud : CanvasLayer
     private void BuildShop(Control root)
     {
         _shop=new Control { Name="CharacterShop",Visible=false }; root.AddChild(_shop);
-        _shop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); FullShade(_shop,0.97f);
-        var box=CenterCard(_shop,640);
+        _shop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var backdrop=Art(_shop,GD.Load<Texture2D>("res://Textures/ArtRefresh/cave_basalt.png"),Vector2.Zero);
+        backdrop.StretchMode=TextureRect.StretchModeEnum.KeepAspectCovered; backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        backdrop.Modulate=new Color(0.18f,0.19f,0.2f); FullShade(_shop,0.75f);
+        var box=CenterCard(_shop,Mathf.Min(900,GetViewport().GetVisibleRect().Size.X-48));
+        _shopCard=box.GetParent<PanelContainer>();
         var header=new HBoxContainer(); box.AddChild(header);
         Text(header,"МАЙСТЕРНЯ",28,new Color("eee5d2")).SizeFlagsHorizontal=Control.SizeFlags.ExpandFill;
         _walletLabel=Text(header,"",19,Aqua);
         var tabs=new TabContainer(); box.AddChild(tabs);
-        var characters=new HBoxContainer { Name="Форми" }; tabs.AddChild(characters);
+        var forms=new VBoxContainer { Name="Форми" }; tabs.AddChild(forms);
+        _formFilter=new OptionButton { CustomMinimumSize=new Vector2(0,42) }; forms.AddChild(_formFilter);
+        foreach(BodyForm form in System.Enum.GetValues<BodyForm>()) _formFilter.AddItem(CharacterCatalog.FormName(form));
+        _formFilter.ItemSelected+=index=>{ _previewSkin=CharacterCatalog.BaseSkin((BodyForm)index); RefreshShop(); };
+        var characters=new HBoxContainer(); forms.AddChild(characters);
         characters.AddThemeConstantOverride("separation",24);
-        var skinScroll=new ScrollContainer { Name="SkinScroll",CustomMinimumSize=new Vector2(260,360),HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,FollowFocus=true }; characters.AddChild(skinScroll);
-        var selection=new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; skinScroll.AddChild(selection);
+        int columns=GetViewport().GetVisibleRect().Size.X>=1000 ? 3 : 2;
+        var skinScroll=new ScrollContainer { Name="SkinScroll",CustomMinimumSize=new Vector2(columns*148+16,320),HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,FollowFocus=true }; characters.AddChild(skinScroll);
+        _skinScroll=skinScroll;
+        var selection=new GridContainer { Columns=columns,SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; skinScroll.AddChild(selection);
+        _skinGrid=selection;
+        selection.AddThemeConstantOverride("h_separation",8); selection.AddThemeConstantOverride("v_separation",8);
         for(int i=0;i<CharacterCatalog.Count;i++)
         {
             int id=i;
-            if(i==0 || i==6 || i==9) Text(selection,CharacterCatalog.FormName(CharacterCatalog.Get(i).Form),13,Aqua);
-            _skinItems[i]=Button(selection,CharacterCatalog.Get(i).Name,()=>{ _previewSkin=id; RefreshShop(); });
-            _skinItems[i].Alignment=HorizontalAlignment.Left;
+            var tile=Button(selection,"",()=>{ _previewSkin=id; RefreshShop(); }); _skinItems[i]=tile;
+            tile.CustomMinimumSize=new Vector2(144,136); tile.TooltipText=CharacterCatalog.Get(i).Name;
+            var icon=Art(tile,CharacterCatalog.Texture(i),Vector2.Zero); icon.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopWide);
+            icon.OffsetLeft=18; icon.OffsetRight=-18; icon.OffsetTop=10; icon.OffsetBottom=94;
+            _skinLabels[i]=Text(tile,CharacterCatalog.Get(i).Name,13); _skinLabels[i].HorizontalAlignment=HorizontalAlignment.Center;
+            _skinLabels[i].AutowrapMode=TextServer.AutowrapMode.WordSmart;
+            _skinLabels[i].SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide); _skinLabels[i].OffsetLeft=4; _skinLabels[i].OffsetRight=-4; _skinLabels[i].OffsetTop=-42; _skinLabels[i].OffsetBottom=-2;
         }
         var preview=new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; characters.AddChild(preview);
-        _shopHero=Art(preview,CharacterCatalog.Texture(0),new Vector2(200,245));
+        _shopHero=Art(preview,CharacterCatalog.Texture(0),new Vector2(200,225));
         _heroName=Text(preview,"",20); _heroName.HorizontalAlignment=HorizontalAlignment.Center;
+        _heroName.AutowrapMode=TextServer.AutowrapMode.WordSmart;
         _buySkin=Button(preview,"",()=>{
             if(SaveData.SelectOrBuySkin(_previewSkin)) GetParent().GetNode<Player>("Player").ApplySkin();
             RefreshShop();
@@ -347,20 +370,34 @@ public partial class Hud : CanvasLayer
         });
         _unlockForm.AddThemeFontSizeOverride("font_size",15);
         var equipmentScroll=new ScrollContainer { Name="Спорядження",CustomMinimumSize=new Vector2(0,360),HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,FollowFocus=true }; tabs.AddChild(equipmentScroll);
-        var equipment=new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; equipmentScroll.AddChild(equipment);
+        var equipment=new GridContainer { Columns=columns==3 ? 2 : 1,SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; equipmentScroll.AddChild(equipment);
+        _equipmentGrid=equipment;
+        equipment.AddThemeConstantOverride("h_separation",12); equipment.AddThemeConstantOverride("v_separation",12);
         for(int i=0;i<UpgradeCatalog.Count;i++)
         {
             int item=i; _shopItems[i]=Button(equipment,"",()=>{ SaveData.Buy(item); RefreshShop(); });
-            _shopItems[i].CustomMinimumSize=new Vector2(0,72);
-            _shopItems[i].AddThemeFontSizeOverride("font_size",16);
+            _shopItems[i].CustomMinimumSize=new Vector2(0,90); _shopItems[i].SizeFlagsHorizontal=Control.SizeFlags.ExpandFill;
+            _shopItems[i].AddThemeFontSizeOverride("font_size",14);
         }
         var trails=new VBoxContainer { Name="Сліди" }; tabs.AddChild(trails);
+        Text(trails,"КОСМЕТИЧНИЙ СЛІД ЗА ФІГУРОЮ",15,Aqua);
+        Text(trails,"Нагорода за досягнення. Не витрачає заряд і не змінює швидкість.",14);
+        _trailPreview=new TrailPreview { CustomMinimumSize=new Vector2(0,88),MouseFilter=Control.MouseFilterEnum.Ignore }; trails.AddChild(_trailPreview);
         for(int i=0;i<4;i++)
         {
-            int id=i; _trailItems[i]=Button(trails,"",()=>{ SaveData.SelectTrail(id); RefreshShop(); });
+            int id=i; _trailItems[i]=Button(trails,"",()=>{ SaveData.SelectTrail(id); RefreshShop(); _trailPreview.StyleId=id; });
             _trailItems[i].AddThemeFontSizeOverride("font_size",15);
         }
         _shopBack=Button(box,"НАЗАД",CloseShop);
+        _shop.Resized+=ResizeShop;
+    }
+    private void ResizeShop()
+    {
+        float width=Mathf.Min(900,GetViewport().GetVisibleRect().Size.X-48);
+        _shopCard.CustomMinimumSize=new Vector2(width,0);
+        int columns=width>=820 ? 3 : 2;
+        _skinGrid.Columns=columns; _skinScroll.CustomMinimumSize=new Vector2(columns*148+16,320);
+        _equipmentGrid.Columns=columns==3 ? 2 : 1;
     }
 
     private void RefreshShop()
@@ -375,24 +412,27 @@ public partial class Hud : CanvasLayer
         }
         for(int i=0;i<CharacterCatalog.Count;i++)
         {
-            _skinItems[i].Text=CharacterCatalog.Get(i).Name+(SaveData.SelectedSkin==i ? "  ✓" : "");
-            _skinItems[i].AddThemeColorOverride("font_color",_previewSkin==i ? Aqua : new Color("c6cec6"));
+            _skinLabels[i].Text=CharacterCatalog.Get(i).Name+(SaveData.SelectedSkin==i ? " ✓" : "");
+            _skinLabels[i].AddThemeColorOverride("font_color",_previewSkin==i ? Aqua : new Color("c6cec6"));
+            _skinItems[i].Visible=CharacterCatalog.Get(i).Form==CharacterCatalog.Get(_previewSkin).Form;
+            _skinItems[i].AddThemeStyleboxOverride("normal",Card(new Color(_previewSkin==i ? "30372e" : "1b2222"),_previewSkin==i ? Aqua : Edge,5));
         }
         var character=CharacterCatalog.Get(_previewSkin);
+        _formFilter.Select((int)character.Form);
         int baseSkin=CharacterCatalog.BaseSkin(character.Form);
         bool locked=!SaveData.OwnsSkin(baseSkin);
         _unlockForm.Visible=locked && character.Id!=baseSkin;
-        _unlockForm.Text=$"ВІДКРИТИ {CharacterCatalog.FormName(character.Form)} · {SaveData.SkinPrice(baseSkin)}";
+        _unlockForm.Text=$"ВІДКРИТИ {CharacterCatalog.FormName(character.Form)}\n{SaveData.SkinPrice(baseSkin)} монет";
         _unlockForm.Disabled=SaveData.Wallet<SaveData.SkinPrice(baseSkin);
         _shopHero.Texture=CharacterCatalog.Texture(character.Id); _heroName.Text=character.Name;
         _buySkin.Text=locked && character.Id!=baseSkin ? $"СКІН · {character.Price}" : SaveData.SelectedSkin==character.Id ? "ВИБРАНО" : SaveData.OwnsSkin(character.Id) ? "ОБРАТИ" : $"КУПИТИ · {character.Price}";
         _buySkin.Disabled=(locked && character.Id!=baseSkin) || SaveData.SelectedSkin==character.Id || (!SaveData.OwnsSkin(character.Id) && SaveData.Wallet<character.Price);
         _menuHero.Texture=CharacterCatalog.Texture(SaveData.SelectedSkin);
-        string[] trails={"Повітряний","Бурштиновий · пройди ядро","Кварцовий · пройди коло","Водяний · погаси вогонь 3 рази"};
+        _trailPreview.StyleId=SaveData.SelectedTrail;
         for(int i=0;i<4;i++)
         {
-            _trailItems[i].Text=(SaveData.SelectedTrail==i ? "✓  " : SaveData.OwnsTrail(i) ? "" : "·  ")+trails[i];
-            _trailItems[i].Disabled=!SaveData.OwnsTrail(i);
+            _trailItems[i].Text=(SaveData.SelectedTrail==i ? "✓  " : "")+TrailStyle.Name(i)+" · "+(SaveData.OwnsTrail(i) ? "Відкрито" : TrailStyle.Requirement(i));
+            _trailItems[i].Disabled=false;
         }
     }
 
@@ -530,7 +570,7 @@ void fragment() {
     private void UpdateTutorialText()
     {
         _tutorialText.Text = _tutorialStep == 0 ? "1 / 3  Рухайся вбік: A / D, стрілки або лівий стік."
-            : _tutorialStep == 1 ? "2 / 3  Наведи світло мишкою чи правим стіком. F / Y перемикає ліхтар."
+            : _tutorialStep == 1 ? "2 / 3  Наведи світло мишкою чи правим стіком. ЛКМ / Y перемикає ліхтар."
             : "3 / 3  Увійди в блакитний струмінь. Вода охолоджує та гасить вогонь.";
     }
     public void NotifyTutorialMove() { if (_tutorialActive && _tutorialStep == 0) { _tutorialStep = 1; UpdateTutorialText(); } }

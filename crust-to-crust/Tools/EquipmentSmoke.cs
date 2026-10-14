@@ -14,7 +14,7 @@ public partial class EquipmentSmoke : Node
         try
         {
             var cfg=new ConfigFile(); cfg.SetValue("shop","wallet",10000); cfg.SetValue("shop","cooling",3); cfg.SetValue("skins","owned",63); cfg.SetValue("skins","selected",4); cfg.SetValue("best","distance",1234f); cfg.Save(path); Reload();
-            Check(CharacterCatalog.Count==12,"six cubes and three skins each for circle and triangle");
+            Check(CharacterCatalog.Count>=12,"original geometric skins remain available");
             Check(CharacterCatalog.Get(3).Name!="Шахтар" && CharacterCatalog.Get(4).Name!="Буровий робот" && CharacterCatalog.Get(5).Name!="Голем","old character ownership maps to replacement cubes");
             Check(CharacterCatalog.Get(3).CreateBodyShape() is RectangleShape2D,"replacement cube has square collision");
             Check(!SaveData.SelectOrBuySkin(7),"circle skin is locked until its form is unlocked");
@@ -34,6 +34,15 @@ public partial class EquipmentSmoke : Node
                 Check(!SaveData.Buy(id) && SaveData.Wallet==wallet,"maximum equipment cannot charge coins again: "+id);
             }
             Check(!SaveData.Buy(UpgradeCatalog.Count),"invalid equipment is rejected");
+            SaveData.CreditCoin(10000);
+            foreach(int baseSkin in new[] {12,14,16})
+            {
+                Check(!SaveData.SelectOrBuySkin(baseSkin+1),"new family skin requires its base form: "+baseSkin);
+                wallet=SaveData.Wallet;
+                Check(SaveData.SelectOrBuySkin(baseSkin) && SaveData.Wallet==wallet-SaveData.SkinPrice(baseSkin),"new form purchase deducts its correct price: "+baseSkin);
+                Check(SaveData.SelectOrBuySkin(baseSkin+1),"new family alternate skin can be bought: "+baseSkin);
+                Reload(); Check(SaveData.OwnsSkin(baseSkin+1) && SaveData.SelectedSkin==baseSkin+1,"new form and alternate survive reload: "+baseSkin);
+            }
             var reset=typeof(SaveData).GetMethod("ResetEquipment",BindingFlags.Public|BindingFlags.Static);
             Check(reset!=null,"one-time equipment reset is available without resetting progress");
             if(reset!=null)

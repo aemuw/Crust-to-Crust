@@ -41,6 +41,7 @@ public partial class Player : CharacterBody2D
     private ShaderMaterial _flameMaterial;
     private PointLight2D _fireLight;
     private WindTrails _wind;
+    private MasteryTrail _masteryTrail;
     private float _fxClock, _angularVelocity, _spriteAngle;
     private float _skinSpriteScale = NormalSpriteScale;
     private AudioStreamPlayer _windSfx;
@@ -184,45 +185,27 @@ public partial class Player : CharacterBody2D
 	private void PlayIntroAnimation()
 	{
 		ResetToSurface();
-
-		var tween = CreateTween();
-
-		// 1. Ковзання по поверхні до краю розлому з легкою віддачею
-		tween.TweenProperty(this, "position:x", -310f, 0.65f)
-			.SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
-
-		// 2. Високий стрибок у розлом з повним переворотом
-		const float targetStartX = 0f;
-		tween.TweenProperty(this, "position:y", SurfaceY - 140f, 0.35f)
-			.SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
-		tween.Parallel().TweenProperty(this, "position:x", targetStartX, 0.75f)
-			.SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.InOut);
-		tween.Parallel().TweenProperty(this, "rotation", Mathf.DegToRad(360f), 0.75f)
-			.SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.InOut);
-
-		// 3. Падіння в шахту; камера плавно слідує до центру екрана
-		tween.TweenProperty(this, "position:y", FixedY, 0.45f)
-			.SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-		if (_camera != null)
-		{
-			tween.Parallel().TweenProperty(_camera, "position:y", 0f, 0.65f)
-				.SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.InOut);
-		}
-
-		// 4. Пружне приземлення (squash & stretch)
-		tween.TweenProperty(this, "scale", new Vector2(1.2f, 0.85f), 0.1f);
-		tween.TweenProperty(this, "scale", Vector2.One, 0.15f);
-
-		tween.TweenCallback(Callable.From(() =>
-		{
-			Rotation = 0f;
-			Position = new Vector2(targetStartX, FixedY);
-			_currentVelocityX = 0f;
-			if (_camera != null) _camera.Position = Vector2.Zero;
-			_state = State.Playing;
-			_levelGenerator?.BeginFalling();
-		}));
+        var tween=CreateTween();
+        tween.TweenProperty(this,"scale",new Vector2(1.12f,0.88f),0.18f).SetTrans(Tween.TransitionType.Sine);
+        tween.TweenProperty(this,"position:x",-310f,0.5f).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.In);
+        tween.TweenCallback(Callable.From(()=>Burst(new Vector2(-310,SurfaceY+22),-1)));
+        tween.TweenMethod(Callable.From<float>(t=>{
+            Position=new Vector2(Mathf.Lerp(-310,0,t),Mathf.Lerp(SurfaceY,SurfaceY+85,t)-Mathf.Sin(t*Mathf.Pi)*155);
+            Rotation=Mathf.Tau*t; Scale=new Vector2(0.94f,1.08f);
+            if(_camera!=null) { _camera.Position=new Vector2(0,Mathf.Lerp(SurfaceY,-210,t*t)); _camera.Zoom=Vector2.One*(1-0.06f*Mathf.Sin(t*Mathf.Pi)); }
+        }),0f,1f,0.9f).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+        tween.TweenCallback(Callable.From(()=>Burst(new Vector2(0,SurfaceY),-1)));
+        tween.TweenProperty(this,"position:y",FixedY,0.65f).SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+        if(_camera!=null) tween.Parallel().TweenProperty(_camera,"position",Vector2.Zero,0.65f).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+        tween.Parallel().TweenProperty(this,"scale",Vector2.One,0.65f).SetTrans(Tween.TransitionType.Sine);
+        tween.TweenCallback(Callable.From(()=>{
+            Rotation=0; Position=new Vector2(0,FixedY); Scale=Vector2.One; _currentVelocityX=0;
+            if(_camera!=null) { _camera.Position=Vector2.Zero; _camera.Zoom=Vector2.One; }
+            _state=State.Playing; _levelGenerator?.BeginFalling();
+        }));
 	}
+    private void Burst(Vector2 position,float direction)
+    { GetParent().AddChild(new CaveBurst { Position=position,Direction=direction }); }
 
 	/// <summary>Виліт з іншого кінця планети, розворот у невагомості та нове падіння.</summary>
 	public void PlayEmergenceAnimation(System.Action onComplete)
@@ -236,24 +219,28 @@ public partial class Player : CharacterBody2D
 		if (_camera != null) { _camera.IgnoreRotation = false; _camera.Offset = Vector2.Zero; }
 
 		var tween = CreateTween();
+        Burst(new Vector2(0,460),1);
 		// Вихід через нижню поверхню, повільно в апогеї, потім розворот камери.
-		tween.TweenProperty(this, "position", new Vector2(0f, 850f), 1.8f)
+		tween.TweenProperty(this, "position", new Vector2(0f, 850f), 1.6f)
 			.SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
 		if (_camera != null)
 		{
-			tween.Parallel().TweenProperty(_camera, "position", new Vector2(0f, 700f), 1.8f)
+			tween.Parallel().TweenProperty(_camera, "position", new Vector2(0f, 700f), 1.6f)
 				.SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
-			tween.Parallel().TweenProperty(_camera, "zoom", new Vector2(0.85f, 0.85f), 1.8f);
+			tween.Parallel().TweenProperty(_camera, "zoom", new Vector2(0.85f, 0.85f), 1.6f).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
 		}
+        tween.Parallel().TweenProperty(this,"scale",new Vector2(0.94f,1.10f),0.4f);
+        tween.Parallel().TweenMethod(Callable.From<float>(alpha=>_levelGenerator?.SetTunnelFade(alpha)),1f,0f,0.55f).SetDelay(1.05f);
 		tween.TweenCallback(Callable.From(() => _levelGenerator?.HideTunnelForEmergence()));
 		tween.TweenProperty(this, "position:y", 890f, 0.45f)
 			.SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
+        tween.Parallel().TweenProperty(this,"scale",Vector2.One,0.45f);
 		tween.TweenInterval(_levelGenerator?.SurfaceHangDuration ?? 0.65f);
-		if (_camera != null)
-			tween.TweenProperty(_camera, "rotation", Mathf.Pi, 1.7f)
-				.SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
-		tween.TweenProperty(this, "rotation", Mathf.Pi, 0.45f)
-			.SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+        tween.TweenMethod(Callable.From<float>(t=>{
+            if(_camera!=null) _camera.Rotation=Mathf.Pi*t;
+            Rotation=Mathf.Pi*t;
+            Position=new Vector2(Mathf.Sin(t*Mathf.Tau)*18,890+Mathf.Sin(t*Mathf.Pi)*22);
+        }),0f,1f,1.7f).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
 		tween.TweenCallback(Callable.From(() =>
 		{
 			// Перебазування координат: видима картинка лишається тією самою.
@@ -271,9 +258,12 @@ public partial class Player : CharacterBody2D
 				.SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
 			tween.Parallel().TweenProperty(_camera, "zoom", Vector2.One, 1.65f);
 		}
+        tween.Parallel().TweenMethod(Callable.From<float>(alpha=>_levelGenerator?.SetTunnelFade(alpha)),0f,1f,0.7f).SetDelay(0.95f);
+        tween.TweenCallback(Callable.From(()=>Burst(new Vector2(0,SurfaceY),-1)));
 		tween.TweenCallback(Callable.From(() =>
 		{
 			_currentVelocityX = 0f;
+            Scale=Vector2.One;
 			_state = State.Playing;
 			onComplete?.Invoke();
 		}));
@@ -290,6 +280,7 @@ public partial class Player : CharacterBody2D
         UpdateLantern(dt);
         if (_wind != null) { _wind.GlobalPosition = Vector2.Zero; _wind.GlobalRotation = 0f; }
         _wind?.SetMotion(_levelGenerator?.FallSpeed ?? 0f, _currentVelocityX, _state == State.Playing);
+        _masteryTrail?.SetMotion(GlobalPosition,_levelGenerator?.FallSpeed??0,_state==State.Playing && _levelGenerator?.IsGameActive==true);
         if (_windSfx != null)
         {
             float ratio = _state == State.Playing ? Mathf.Clamp(((_levelGenerator?.FallSpeed ?? 0f)-180f)/800f,0f,1f) : 0f;
@@ -400,7 +391,7 @@ public partial class Player : CharacterBody2D
         if (_characterSprite == null) return;
         var character=CharacterCatalog.Get(SaveData.SelectedSkin);
         _characterSprite.Texture = CharacterCatalog.Texture(character.Id);
-        _skinSpriteScale = character.DisplayHeight / _characterSprite.Texture.GetHeight();
+        _skinSpriteScale = character.RenderSize.Y / _characterSprite.Texture.GetHeight();
         _characterSprite.Scale = Vector2.One * _skinSpriteScale;
         _bodyShape=GetNode<CollisionShape2D>("collision");
         _contactShape=GetNode<CollisionShape2D>("Hitbox/hitbox");
@@ -448,6 +439,7 @@ public partial class Player : CharacterBody2D
             MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 6, Visible = false };
         AddChild(_flameEffect);
         _wind = new WindTrails { Name = "WindTrails" }; AddChild(_wind);
+        _masteryTrail=new MasteryTrail { Name="MasteryTrail" }; AddChild(_masteryTrail);
         _windSfx = EnsureSfx("WindSfx","res://Audio/wind.wav");
         if (_windSfx.Stream is AudioStreamWav windAudio)
         {
