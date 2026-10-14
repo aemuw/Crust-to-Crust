@@ -265,6 +265,7 @@ public partial class LevelGenerator : Node2D
 
 	public void StartGame()
 	{
+        _audio?.StartGameplayMusic();
 		// Під час стрибка з поверхні секції ще не рухаються.
 		IsGameActive = false;
 		SetTunnelHazardsVisible(false);

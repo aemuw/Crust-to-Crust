@@ -11,6 +11,9 @@ public partial class AudioManager : Node
 	private const string MusicPath = "res://Audio/cave_ambience.wav";
 
 	private AudioStreamPlayer _music;
+    private AudioStreamPlayer _menuScore, _gameScore;
+    private Tween _scoreFade;
+    private bool _gameplayMusic;
     private AudioStreamPlayer _coreAccent;
     private CaveZone _zone = CaveZone.Basalt;
     private float _zonePitch = 1f;
@@ -60,15 +63,42 @@ public partial class AudioManager : Node
 		_music = new AudioStreamPlayer { Name = "Music", Stream = stream, Bus = MusicBus, VolumeDb = -4f };
 		AddChild(_music);
 		_music.Play();
+        _menuScore = CreateScore("MenuScore", "res://Audio/menu_planets_lullaby.wav", -2f);
+        _gameScore = CreateScore("GameScore", "res://Audio/game_obsidian_rush.wav", -60f);
+        _menuScore.Play();
         _coreAccent = new AudioStreamPlayer { Name = "CoreAccent",Stream = GD.Load<AudioStream>("res://Audio/coin.wav"),Bus = SfxBus,VolumeDb = -8f,PitchScale = 0.55f };
         AddChild(_coreAccent);
 	}
+    private AudioStreamPlayer CreateScore(string name, string path, float volume)
+    {
+        var stream = GD.Load<AudioStreamWav>(path);
+        stream.LoopMode = AudioStreamWav.LoopModeEnum.Forward;
+        stream.LoopBegin = 0;
+        stream.LoopEnd = (int)Mathf.Round(stream.GetLength() * stream.MixRate);
+        var player = new AudioStreamPlayer { Name = name, Stream = stream, Bus = MusicBus, VolumeDb = volume };
+        AddChild(player);
+        return player;
+    }
+    public void StartGameplayMusic()
+    {
+        if (_gameplayMusic || _gameScore == null) return;
+        _gameplayMusic = true;
+        _scoreFade?.Kill();
+        _gameScore.Play();
+        _scoreFade = CreateTween().SetParallel();
+        _scoreFade.TweenProperty(_menuScore, "volume_db", -60f, 1.25);
+        _scoreFade.TweenProperty(_gameScore, "volume_db", -2f, 1.25);
+        _scoreFade.Chain().TweenCallback(Callable.From(() => _menuScore.Stop()));
+    }
     public void SetZone(CaveZone zone) => _zone = zone;
     public override void _ExitTree()
     {
         // Release playback before a menu reload replaces the whole world.
         if(_music!=null) { _music.Stop(); _music.Stream=null; }
         if(_coreAccent!=null) { _coreAccent.Stop(); _coreAccent.Stream=null; }
+        _scoreFade?.Kill();
+        foreach (var score in new[] { _menuScore, _gameScore })
+            if (score != null) { score.Stop(); score.Stream = null; }
     }
     public void PlayCoreAccent() => _coreAccent?.Play();
     public override void _Process(double delta)
