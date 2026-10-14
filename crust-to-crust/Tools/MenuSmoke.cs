@@ -12,7 +12,7 @@ public partial class MenuSmoke : Node
             var hud=level.GetNode<Hud>("HUD");
             await ToSignal(GetTree().CreateTimer(0.15),SceneTreeTimer.SignalName.Timeout);
             var buttons=(Button[])typeof(Hud).GetField("_skinItems",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(hud);
-            if(buttons.Length!=6 || Array.Exists(buttons,b=>b==null)) throw new Exception("all six characters must have working shop buttons");
+            if(buttons.Length!=CharacterCatalog.Count || Array.Exists(buttons,b=>b==null)) throw new Exception("all shapes and skins must have working shop buttons");
             if(!hud.HasNode("Control/Settings")) throw new Exception("settings must be a separate screen");
             var menu=hud.GetNode<Control>("Control/StartMenuPanel");
             foreach(Node child in menu.GetChildren())

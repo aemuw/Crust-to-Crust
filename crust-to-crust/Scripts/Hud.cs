@@ -6,7 +6,7 @@ public partial class Hud : CanvasLayer
     private Label _gameOverStats, _walletLabel, _speedLabel, _pauseStats;
     private Control _gameOverPanel, _startMenuPanel, _pauseOverlay, _shop;
     private Button _pauseButton, _resumeButton, _shopBack;
-    private readonly Button[] _shopItems = new Button[3], _skinItems = new Button[CharacterCatalog.Count];
+    private readonly Button[] _shopItems = new Button[UpgradeCatalog.Count], _skinItems = new Button[CharacterCatalog.Count];
     private readonly Button[] _trailItems = new Button[4];
     private ProgressBar _heatBar;
     private Control _lanternStatus;
@@ -19,7 +19,7 @@ public partial class Hud : CanvasLayer
     private Control _settings;
     private Control _settingsReturn;
     private Control _shopReturn;
-    private Button _settingsBack, _buySkin;
+    private Button _settingsBack, _buySkin, _unlockForm;
     private TextureRect _shopHero;
     private Label _heroName;
     private int _previewSkin;
@@ -323,12 +323,14 @@ public partial class Hud : CanvasLayer
         Text(header,"МАЙСТЕРНЯ",28,new Color("eee5d2")).SizeFlagsHorizontal=Control.SizeFlags.ExpandFill;
         _walletLabel=Text(header,"",19,Aqua);
         var tabs=new TabContainer(); box.AddChild(tabs);
-        var characters=new HBoxContainer { Name="Персонажі" }; tabs.AddChild(characters);
+        var characters=new HBoxContainer { Name="Форми" }; tabs.AddChild(characters);
         characters.AddThemeConstantOverride("separation",24);
-        var selection=new VBoxContainer { CustomMinimumSize=new Vector2(240,0) }; characters.AddChild(selection);
+        var skinScroll=new ScrollContainer { Name="SkinScroll",CustomMinimumSize=new Vector2(260,360),HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,FollowFocus=true }; characters.AddChild(skinScroll);
+        var selection=new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; skinScroll.AddChild(selection);
         for(int i=0;i<CharacterCatalog.Count;i++)
         {
             int id=i;
+            if(i==0 || i==6 || i==9) Text(selection,CharacterCatalog.FormName(CharacterCatalog.Get(i).Form),13,Aqua);
             _skinItems[i]=Button(selection,CharacterCatalog.Get(i).Name,()=>{ _previewSkin=id; RefreshShop(); });
             _skinItems[i].Alignment=HorizontalAlignment.Left;
         }
@@ -339,11 +341,18 @@ public partial class Hud : CanvasLayer
             if(SaveData.SelectOrBuySkin(_previewSkin)) GetParent().GetNode<Player>("Player").ApplySkin();
             RefreshShop();
         });
-        var equipment=new VBoxContainer { Name="Спорядження" }; tabs.AddChild(equipment);
-        for(int i=0;i<3;i++)
+        _unlockForm=Button(preview,"",()=>{
+            SaveData.SelectOrBuySkin(CharacterCatalog.BaseSkin(CharacterCatalog.Get(_previewSkin).Form));
+            GetParent().GetNode<Player>("Player").ApplySkin(); RefreshShop();
+        });
+        _unlockForm.AddThemeFontSizeOverride("font_size",15);
+        var equipmentScroll=new ScrollContainer { Name="Спорядження",CustomMinimumSize=new Vector2(0,360),HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,FollowFocus=true }; tabs.AddChild(equipmentScroll);
+        var equipment=new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; equipmentScroll.AddChild(equipment);
+        for(int i=0;i<UpgradeCatalog.Count;i++)
         {
             int item=i; _shopItems[i]=Button(equipment,"",()=>{ SaveData.Buy(item); RefreshShop(); });
-            _shopItems[i].CustomMinimumSize=new Vector2(0,78);
+            _shopItems[i].CustomMinimumSize=new Vector2(0,72);
+            _shopItems[i].AddThemeFontSizeOverride("font_size",16);
         }
         var trails=new VBoxContainer { Name="Сліди" }; tabs.AddChild(trails);
         for(int i=0;i<4;i++)
@@ -357,13 +366,12 @@ public partial class Hud : CanvasLayer
     private void RefreshShop()
     {
         _walletLabel.Text=$"{SaveData.Wallet} монет";
-        string[] names={"Теплоізоляція","Охолодження","Ліхтар"};
-        string[] effects={"Нагрів −12%","Захист +2 с","Дальність +15%"};
-        for(int i=0;i<3;i++)
+        for(int i=0;i<UpgradeCatalog.Count;i++)
         {
             int level=SaveData.UpgradeLevel(i);
-            _shopItems[i].Text=$"{names[i]}  {level}/3\n{effects[i]}  ·  "+(level==3 ? "Максимум" : $"{SaveData.Price(level)} монет");
-            _shopItems[i].Disabled=level==3 || SaveData.Wallet<SaveData.Price(level);
+            int price=UpgradeCatalog.Price(i,level);
+            _shopItems[i].Text=$"{UpgradeCatalog.Name(i)}  {level}/3\n{UpgradeCatalog.Effect(i)}  ·  "+(level==3 ? "Максимум" : $"{price} монет");
+            _shopItems[i].Disabled=level==3 || SaveData.Wallet<price;
         }
         for(int i=0;i<CharacterCatalog.Count;i++)
         {
@@ -371,9 +379,14 @@ public partial class Hud : CanvasLayer
             _skinItems[i].AddThemeColorOverride("font_color",_previewSkin==i ? Aqua : new Color("c6cec6"));
         }
         var character=CharacterCatalog.Get(_previewSkin);
+        int baseSkin=CharacterCatalog.BaseSkin(character.Form);
+        bool locked=!SaveData.OwnsSkin(baseSkin);
+        _unlockForm.Visible=locked && character.Id!=baseSkin;
+        _unlockForm.Text=$"ВІДКРИТИ {CharacterCatalog.FormName(character.Form)} · {SaveData.SkinPrice(baseSkin)}";
+        _unlockForm.Disabled=SaveData.Wallet<SaveData.SkinPrice(baseSkin);
         _shopHero.Texture=CharacterCatalog.Texture(character.Id); _heroName.Text=character.Name;
-        _buySkin.Text=SaveData.SelectedSkin==character.Id ? "ВИБРАНО" : SaveData.OwnsSkin(character.Id) ? "ОБРАТИ" : $"КУПИТИ · {character.Price}";
-        _buySkin.Disabled=SaveData.SelectedSkin==character.Id || (!SaveData.OwnsSkin(character.Id) && SaveData.Wallet<character.Price);
+        _buySkin.Text=locked && character.Id!=baseSkin ? $"СКІН · {character.Price}" : SaveData.SelectedSkin==character.Id ? "ВИБРАНО" : SaveData.OwnsSkin(character.Id) ? "ОБРАТИ" : $"КУПИТИ · {character.Price}";
+        _buySkin.Disabled=(locked && character.Id!=baseSkin) || SaveData.SelectedSkin==character.Id || (!SaveData.OwnsSkin(character.Id) && SaveData.Wallet<character.Price);
         _menuHero.Texture=CharacterCatalog.Texture(SaveData.SelectedSkin);
         string[] trails={"Повітряний","Бурштиновий · пройди ядро","Кварцовий · пройди коло","Водяний · погаси вогонь 3 рази"};
         for(int i=0;i<4;i++)

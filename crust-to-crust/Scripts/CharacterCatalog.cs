@@ -1,12 +1,13 @@
 using Godot;
 
-public sealed record CharacterDefinition(int Id,string Name,string TexturePath,int Price,float DisplayHeight,float EnvelopeRadius)
+public enum BodyForm { Cube, Circle, Triangle }
+
+public sealed record CharacterDefinition(int Id,string Name,string TexturePath,int Price,float DisplayHeight,float EnvelopeRadius,BodyForm Form=BodyForm.Cube)
 {
-    public Shape2D CreateBodyShape() => Id switch
+    public Shape2D CreateBodyShape() => Form switch
     {
-        3 => new CapsuleShape2D { Radius=16,Height=64 },
-        4 => new CapsuleShape2D { Radius=21,Height=60 },
-        5 => new ConvexPolygonShape2D { Points=new[] { new Vector2(-16,-28),new Vector2(16,-28),new Vector2(25,-9),new Vector2(21,26),new Vector2(-21,26),new Vector2(-25,-9) } },
+        BodyForm.Circle => new CircleShape2D { Radius=24 },
+        BodyForm.Triangle => new ConvexPolygonShape2D { Points=new[] { new Vector2(0,-26),new Vector2(30,26),new Vector2(-30,26) } },
         _ => new RectangleShape2D { Size=new Vector2(48,48) }
     };
 }
@@ -20,12 +21,20 @@ public static class CharacterCatalog
         new(0,"Базальт",Root+"hero_basalt.png",0,52,46),
         new(1,"Крижаний кварц",Root+"hero_ice.png",24,52,46),
         new(2,"Жар обсидіану",Root+"hero_ember.png",36,52,46),
-        new(3,"Шахтар",Root+"hero_miner.png",48,70,48),
-        new(4,"Буровий робот",Root+"hero_drillbot.png",60,66,48),
-        new(5,"Голем",Root+"hero_golem.png",72,64,48)
+        new(3,"Мідний механізм",Root+"cube_copper.png",48,52,46),
+        new(4,"Аметист",Root+"cube_amethyst.png",60,52,46),
+        new(5,"Магмова кірка",Root+"cube_magma.png",72,52,46),
+        new(6,"Обсидіанове коло",Root+"circle_obsidian.png",1500,52,46,BodyForm.Circle),
+        new(7,"Мідне коло",Root+"circle_copper.png",400,52,46,BodyForm.Circle),
+        new(8,"Місячний опал",Root+"circle_opal.png",700,52,46,BodyForm.Circle),
+        new(9,"Базальтовий клин",Root+"triangle_basalt.png",2500,56,46,BodyForm.Triangle),
+        new(10,"Бурштиновий клин",Root+"triangle_amber.png",400,56,46,BodyForm.Triangle),
+        new(11,"Крижаний клин",Root+"triangle_ice.png",700,56,46,BodyForm.Triangle)
     };
     private static readonly Texture2D[] Textures=new Texture2D[Entries.Length];
     public static int Count=>Entries.Length;
+    public static int BaseSkin(BodyForm form)=>form==BodyForm.Circle ? 6 : form==BodyForm.Triangle ? 9 : 0;
+    public static string FormName(BodyForm form)=>form==BodyForm.Circle ? "КОЛО" : form==BodyForm.Triangle ? "ТРИКУТНИК" : "КУБ";
     public static CharacterDefinition Get(int id)=>Entries[id>=0 && id<Count ? id : 0];
     public static Texture2D Texture(int id)
     {

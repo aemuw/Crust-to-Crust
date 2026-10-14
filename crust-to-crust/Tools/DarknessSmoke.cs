@@ -19,6 +19,10 @@ public partial class DarknessSmoke : Node
             charge.Refill(); Check(charge.Seconds==5,"empty lamp can recover from a battery");
             for(int i=0;i<60;i++) charge.Tick(1f/60,true);
             Check(Mathf.Abs(charge.Seconds-4)<0.001f,"charge is frame-rate independent");
+            var upgraded=new LanternCharge(3,3);
+            Check(upgraded.Seconds==20 && upgraded.Capacity==24,"accumulator improves starting charge and capacity");
+            upgraded.Tick(100,true); upgraded.Refill();
+            Check(upgraded.Seconds==6.5f && upgraded.Seconds/12<0.55f,"maximum battery upgrade cannot sustain permanent illumination");
             GD.Print("DARKNESS SMOKE PASSED"); GetTree().Quit();
         }
         catch(Exception ex) { GD.PushError(ex.ToString()); GetTree().Quit(1); }

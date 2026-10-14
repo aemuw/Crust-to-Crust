@@ -51,7 +51,7 @@ public partial class Coin : Area2D
         float dt = (float)delta; _clock += dt;
         Position += new Vector2(0,-speed*dt);
         Player runner = _level?.Runner;
-        if (Kind == PickupKind.Coin && runner != null && runner.MagnetActive && Position.DistanceSquaredTo(runner.Position)<220f*220f)
+        if (Kind == PickupKind.Coin && runner != null && runner.MagnetActive && Position.DistanceSquaredTo(runner.Position)<runner.MagnetRadius*runner.MagnetRadius)
             Position = Position.MoveToward(runner.Position,650f*dt);
         if(Kind==PickupKind.Battery)
         {

@@ -13,6 +13,10 @@ public static class SaveData
     public static int Insulation { get; private set; }
     public static int Cooling { get; private set; }
     public static int Lantern { get; private set; }
+    public static int Accumulator { get; private set; }
+    public static int BatteryEfficiency { get; private set; }
+    public static int Magnet { get; private set; }
+    public static int ShieldRecovery { get; private set; }
     public static int SkinOwnedMask { get; private set; } = 1;
     public static int SelectedSkin { get; private set; }
     public static int SkinPrice(int skin) => CharacterCatalog.Get(skin).Price;
@@ -23,6 +27,8 @@ public static class SaveData
         if (skin < 0 || skin >= CharacterCatalog.Count) return false;
         if (!OwnsSkin(skin))
         {
+            int baseSkin=CharacterCatalog.BaseSkin(CharacterCatalog.Get(skin).Form);
+            if(skin!=baseSkin && !OwnsSkin(baseSkin)) return false;
             int price = SkinPrice(skin);
             if (Wallet < price) return false;
             Wallet -= price; SkinOwnedMask |= 1 << skin;
@@ -33,15 +39,20 @@ public static class SaveData
     }
     public static string SkinPath(int skin) => CharacterCatalog.Get(skin).TexturePath;
     public static int Price(int level) => 12 * (level + 1);
-    public static int UpgradeLevel(int item) => item == 0 ? Insulation : item == 1 ? Cooling : item == 2 ? Lantern : 3;
+    public static int UpgradeLevel(int item) => item switch { 0=>Insulation,1=>Cooling,2=>Lantern,3=>Accumulator,4=>BatteryEfficiency,5=>Magnet,6=>ShieldRecovery,_=>3 };
+    public static void ResetEquipment()
+    {
+        Load(); Insulation=Cooling=Lantern=Accumulator=BatteryEfficiency=Magnet=ShieldRecovery=0; Save();
+    }
     public static bool Buy(int item)
     {
         Load();
-        if (item < 0 || item > 2) return false;
-        int level = UpgradeLevel(item), price = Price(level);
+        if (item < 0 || item >= UpgradeCatalog.Count) return false;
+        int level = UpgradeLevel(item), price = UpgradeCatalog.Price(item,level);
         if (level >= 3 || Wallet < price) return false;
         Wallet -= price;
-        if (item == 0) Insulation++; else if (item == 1) Cooling++; else Lantern++;
+        switch(item) { case 0: Insulation++; break; case 1: Cooling++; break; case 2: Lantern++; break;
+            case 3: Accumulator++; break; case 4: BatteryEfficiency++; break; case 5: Magnet++; break; case 6: ShieldRecovery++; break; }
         Save();
         return true;
     }
@@ -83,6 +94,10 @@ public static class SaveData
         Insulation = Mathf.Clamp(cfg.GetValue("shop", "insulation", 0).AsInt32(), 0, 3);
         Cooling = Mathf.Clamp(cfg.GetValue("shop", "cooling", 0).AsInt32(), 0, 3);
         Lantern = Mathf.Clamp(cfg.GetValue("shop", "lantern", 0).AsInt32(), 0, 3);
+        Accumulator=Mathf.Clamp(cfg.GetValue("shop","accumulator",0).AsInt32(),0,3);
+        BatteryEfficiency=Mathf.Clamp(cfg.GetValue("shop","battery_efficiency",0).AsInt32(),0,3);
+        Magnet=Mathf.Clamp(cfg.GetValue("shop","magnet",0).AsInt32(),0,3);
+        ShieldRecovery=Mathf.Clamp(cfg.GetValue("shop","shield_recovery",0).AsInt32(),0,3);
         SkinOwnedMask = (cfg.GetValue("skins", "owned", 1).AsInt32() & ((1<<CharacterCatalog.Count)-1)) | 1;
         SelectedSkin = CharacterCatalog.Get(cfg.GetValue("skins", "selected", 0).AsInt32()).Id;
         if (!OwnsSkin(SelectedSkin)) SelectedSkin = 0;
@@ -108,6 +123,10 @@ public static class SaveData
         cfg.SetValue("shop", "insulation", Insulation);
         cfg.SetValue("shop", "cooling", Cooling);
         cfg.SetValue("shop", "lantern", Lantern);
+        cfg.SetValue("shop","accumulator",Accumulator);
+        cfg.SetValue("shop","battery_efficiency",BatteryEfficiency);
+        cfg.SetValue("shop","magnet",Magnet);
+        cfg.SetValue("shop","shield_recovery",ShieldRecovery);
         cfg.SetValue("skins", "owned", SkinOwnedMask);
         cfg.SetValue("skins", "selected", SelectedSkin);
         cfg.SetValue("best", "distance", BestDistance);

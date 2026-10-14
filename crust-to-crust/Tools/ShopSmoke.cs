@@ -37,7 +37,7 @@ public partial class ShopSmoke : Node
             SaveData.Load();
             Check(SaveData.Wallet == 1 && SaveData.Insulation == 3, "wallet and upgrades persist after reload");
             for (int i = 0; i < 60; i++) SaveData.CreditCoin();
-            Check(!SaveData.SelectOrBuySkin(7), "invalid skin rejected");
+            Check(!SaveData.SelectOrBuySkin(CharacterCatalog.Count), "invalid skin rejected");
             Check(SaveData.SelectOrBuySkin(1) && SaveData.Wallet == 37, "ice skin bought once for 24");
             Check(SaveData.SelectOrBuySkin(0) && SaveData.SelectOrBuySkin(1) && SaveData.Wallet == 37, "owned skin selection is free");
             Check(SaveData.SelectOrBuySkin(2) && SaveData.Wallet == 1, "ember skin costs 36");

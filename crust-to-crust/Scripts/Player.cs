@@ -57,12 +57,13 @@ public partial class Player : CharacterBody2D
     private Sprite2D _shieldSprite;
     private float _doubleCoinsTimer, _magnetTimer, _visualKick, _thermalUiTimer, _shakeStrength;
     private bool _lampWanted = true;
-    private readonly LanternCharge _charge=new();
+    private LanternCharge _charge=new();
     public float LanternSeconds=>_charge.Seconds;
     private bool _aimWithPad;
     private Vector2 _padAim = Vector2.Down;
     private int _waterExtinguishes;
     public bool MagnetActive => _magnetTimer > 0f;
+    public float MagnetRadius=>220f+SaveData.Magnet*20;
     public int CoinMultiplier => _doubleCoinsTimer > 0f ? 2 : 1;
     public override void _ExitTree()
     {
@@ -174,6 +175,7 @@ public partial class Player : CharacterBody2D
 	{
 		if (_state != State.Menu) return;
 		ApplySkin();
+        _charge=new LanternCharge(SaveData.Accumulator,SaveData.BatteryEfficiency);
         _lantern.TextureScale = 0.80f * (1f + SaveData.Lantern * 0.15f);
         _state = State.Intro;
 		PlayIntroAnimation();
@@ -617,6 +619,8 @@ public partial class Player : CharacterBody2D
         Transform2D inverse=_contactShape.GlobalTransform.AffineInverse();
         Vector2 a=(_hasPreviousContact ? _previousContactTransform.AffineInverse() : inverse)*from,b=inverse*to;
         float localRadius=radius/Mathf.Max(0.1f,Mathf.Min(_contactShape.GlobalScale.X,_contactShape.GlobalScale.Y));
+        if(_contactShape.Shape is CircleShape2D circle)
+            return Geometry2D.GetClosestPointToSegment(Vector2.Zero,a,b).LengthSquared()<=Mathf.Pow(circle.Radius+localRadius,2);
         if(_contactShape.Shape is CapsuleShape2D capsule)
         {
             float half=capsule.Height*0.5f-capsule.Radius;
@@ -645,7 +649,7 @@ public partial class Player : CharacterBody2D
         {
             if (pickup.Kind == PickupKind.Shield) GrantShield();
             else if (pickup.Kind == PickupKind.DoubleCoins) _doubleCoinsTimer = 18f;
-            else if (pickup.Kind == PickupKind.Magnet) _magnetTimer = 14f;
+            else if (pickup.Kind == PickupKind.Magnet) _magnetTimer = 14f+SaveData.Magnet*2;
             else if (pickup.Kind == PickupKind.Battery) _charge.Refill();
             _visualKick = 0.12f;
             PlaySfx(_coinSfx,1.35f,1.55f);
@@ -691,7 +695,7 @@ public partial class Player : CharacterBody2D
         effect.TweenProperty(burst,"scale",burst.Scale*1.65f,0.3f);
         effect.TweenProperty(burst,"modulate:a",0f,0.3f);
         effect.Chain().TweenCallback(Callable.From(burst.QueueFree));
-		_invulnerableTimer = ShieldInvulnerableSeconds;
+		_invulnerableTimer = ShieldInvulnerableSeconds+SaveData.ShieldRecovery*0.2f;
 		if (_shieldVisual != null) _shieldVisual.Visible = false;
 		_hud?.SetShield(false);
 		PlaySfx(_deathSfx, 1.6f, 1.8f);
