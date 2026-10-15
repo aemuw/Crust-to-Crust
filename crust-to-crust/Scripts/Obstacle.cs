@@ -47,8 +47,10 @@ public partial class Obstacle : Area2D
         return new HazardMotion(Random(0.7f,1.7f),Random(65,135),(Random(0,1)<0.5f ? -1f : 1f)*Random(0.8f,2.6f),
             (Random(0,1)<0.5f ? -1f : 1f)*Random(120,240),Random(-0.4f,0.4f));
     }
+    private bool _crystalFragment;
     public void ConfigureVariant(int variant,float targetX = 0f,HazardMotion? motion = null)
     {
+        _crystalFragment=false;
         _safeSide = 0;
         _variant = Mathf.Clamp(variant,0,5); _phase = 0f; _dashStarted = false; _dashCount=0; _dashTarget = targetX;
         _retiring=false; _retireClock=0;
@@ -74,6 +76,11 @@ public partial class Obstacle : Area2D
         _shadow.Visible = _variant != 2;
         ZIndex = _variant == 2 ? -7 : 0;
         Rotation = _variant == 1 ? 0.15f : profile.Rotation;
+    }
+    public void ConfigureCrystalFragment()
+    {
+        ConfigureVariant(2,0,new HazardMotion(0,0,.8f,0,0));
+        _crystalFragment=true; ZIndex=0; _glow.Energy=.2f;
     }
     public bool ProtectPassage(int side,float scale)
     {
@@ -193,6 +200,7 @@ public partial class Obstacle : Area2D
             new Vector2(_dashTarget,GlobalPosition.Y),_phase/WarningLeadSeconds,new Color("ffbd70"),true);
         // Apply after sway, bounce and dash. Includes maximum appearance scale;
         // no variant can cross the continuously protected corridor.
+        if(_crystalFragment) Rotation+=_spin*dt;
         if (!KeepPassageOpen()) return;
         if (_appearTimer < AppearDuration)
         {
