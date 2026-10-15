@@ -62,20 +62,8 @@ public partial class CrystalResonance : Node2D
     }
     public override void _Draw()
     {
-        // Broad dark roots disappear inside the rock; only the tips project into the shaft.
-        for(int i=0;i<3;i++)
-        {
-            Vector2 root=new(_side*14,-45+i*43);
-            Vector2 tip=root+new Vector2(-_side*(i==1 ? 86 : 62),-16+i*7);
-            DrawPolyline(new[] {root+new Vector2(_side*28,-23),root+new Vector2(_side*10,-7),root,root+new Vector2(_side*22,24)},new Color("14232b"),3,true);
-            if(!_released || i!=1)
-            {
-                Vector2 center=root.Lerp(tip,.3f);
-                DrawTextureRect(GameAssets.Crystal,new Rect2(center-new Vector2(29,34),new Vector2(58,68)),false,new Color(.42f,.65f,.69f,1));
-            }
-            float shimmer=_started && !_released ? (.2f+.3f*_clock/1.25f+.12f*Mathf.Sin(_clock*5))*SaveData.FlashIntensity : .08f;
-            DrawPolyline(new[] {root,root.Lerp(tip,.45f)+new Vector2(0,9),tip},new Color(.48f,.83f,.85f,shimmer),2,true);
-        }
+        float brightness=_started && !_released ? .65f+.18f*Mathf.Clamp(_clock/1.25f,0,1)*SaveData.FlashIntensity : .55f;
+        CaveArt.Wall(this,CaveArt.Crystal,Vector2.Zero,_side,new Rect2(-35,-105,75,210),new Color(brightness,brightness,brightness,1));
         if(!_released) return;
         for(int i=0;i<10;i++)
         {

@@ -40,6 +40,7 @@ public sealed class RunDirector
     // comfortably below the player's 380 px/s steering, with no discontinuities.
     public float LaneAt(float distance) => 130f * MathF.Sin(distance / 850f + _phase)
         + 15f * MathF.Sin(distance / 1700f + _secondaryPhase);
+    public bool PreferDrillShaft(int lap) => ((Seed+lap)&1)!=0;
     public int NextInt(int min, int max) => _random.Next(min, max);
     public float NextFloat(float min, float max) => min + (max - min) * (float)_random.NextDouble();
     public static CaveZone ZoneAt(float depth,float coreDepth)

@@ -100,11 +100,7 @@ public partial class CaveCollapseEvent : Node2D
         foreach(int side in new[] {-1,1})
         {
             Vector2 root=new(side<0 ? left : right,_sourceY);
-            for(int i=0;i<4;i++)
-            {
-                Vector2 p=root+new Vector2(side*(8+i%2*5),-70+i*38);
-                DrawPolyline(new[] {p,p+new Vector2(side*15,13),p+new Vector2(side*6,28)},new Color(.22f,.20f,.17f,.7f*fade),2,true);
-            }
+            CaveArt.Wall(this,CaveArt.Basalt,root,side,new Rect2(-58,-120,74,240),new Color(.65f,.65f,.65f,fade));
             for(int i=0;i<32;i++)
             {
                 float age=Mathf.PosMod(Elapsed+i*.037f,1.1f);

@@ -121,12 +121,7 @@ public partial class MagmaVent : Node2D
     {
         float warmth=_started && !_released ? .25f+.4f*Mathf.Clamp(_warningClock/WarningSeconds,0,1) : .08f+_flow*.7f;
         float fade=_released ? Mathf.Clamp((2.2f-_burstClock)/.5f,0,1) : 1;
-        for(int i=0;i<3;i++)
-        {
-            Vector2[] seam={new(_side*(17+i*4),-57+i*35),new(_side*7,-37+i*24),new(0,-15+i*13),new(_side*12,7+i*17)};
-            DrawPolyline(seam,new Color(.047f,.063f,.071f,fade),9,true);
-            DrawPolyline(seam,new Color(.38f,.17f,.08f,.7f*fade),4,true);
-            DrawPolyline(seam,new Color(.93f,.38f,.12f,warmth*fade),1.5f,true);
-        }
+        float brightness=.55f+warmth*.3f;
+        CaveArt.Wall(this,CaveArt.Magma,Vector2.Zero,_side,new Rect2(-65,-95,75,190),new Color(brightness,brightness,brightness,fade));
     }
 }

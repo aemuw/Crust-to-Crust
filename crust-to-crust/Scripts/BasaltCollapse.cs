@@ -62,11 +62,7 @@ public partial class BasaltCollapse : Node2D
     {
         if(!_started) return;
         float fade=_released ? Mathf.Clamp(1-_dustTime/2.5f,0,1) : 1;
-        for(int i=0;i<4;i++)
-        {
-            Vector2 p=new(_side*(8+i%2*6),-42+i*23);
-            DrawPolyline(new[] {p,p+new Vector2(-_side*12,9),p+new Vector2(-_side*7,21)},new Color(.28f,.25f,.20f,.8f*fade),2,true);
-        }
+        CaveArt.Wall(this,CaveArt.Basalt,Vector2.Zero,_side,new Rect2(-30,-100,60,200),new Color(.65f,.65f,.65f,fade));
         float clock=_released ? 1.1f+_dustTime : _warningTime;
         for(int i=0;i<18;i++)
         {

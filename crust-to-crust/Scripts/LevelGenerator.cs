@@ -109,11 +109,12 @@ public partial class LevelGenerator : Node2D
     private MagmaVent _magmaVent;
     private CorePressureWave _corePressure;
     private CaveCollapseEvent _collapseEvent;
+    private DrillShaftEvent _drillShaft;
     private float _collapseEventTimer, _collapseEventDelay=12f;
     private float _pressureTimer, _pressureDelay=8f;
     public float PressureVelocity=>_corePressure?.DriftVelocity??0;
     private float _magmaTimer, _magmaDelay=10f;
-    private bool LocalWallEventActive=>(_basaltCollapse?.Active??false)||(_crystalResonance?.Active??false)||(_magmaVent?.Active??false)||(_corePressure?.Active??false)||(_collapseEvent?.Active??false);
+    private bool LocalWallEventActive=>(_basaltCollapse?.Active??false)||(_crystalResonance?.Active??false)||(_magmaVent?.Active??false)||(_corePressure?.Active??false)||(_collapseEvent?.Active??false)||(_drillShaft?.Active??false);
     private float _crystalTimer, _crystalDelay=9f;
     private float _basaltTimer, _basaltDelay=8f;
     private float _batteryTimer, _nextBatteryDelay=10f, _cascadeTimer;
@@ -209,6 +210,7 @@ public partial class LevelGenerator : Node2D
         _magmaVent=new MagmaVent { Name="MagmaVent" }; AddChild(_magmaVent);
         _corePressure=new CorePressureWave { Name="CorePressureWave" }; AddChild(_corePressure);
         _collapseEvent=new CaveCollapseEvent { Name="CollapseEvent" }; AddChild(_collapseEvent);
+        _drillShaft=new DrillShaftEvent { Name="DrillShaftEvent" }; AddChild(_drillShaft);
 
 		// Стартовий біом виставляємо до першого кадру, щоб колір не стрибав після Start.
 		UpdateWallColors();
@@ -306,6 +308,7 @@ public partial class LevelGenerator : Node2D
         _magmaVent?.Deactivate();
         _corePressure?.Deactivate();
         _collapseEvent?.Deactivate();
+        _drillShaft?.Deactivate();
         _audio?.SetCorePresence(0,false);
         ClearShooters();
 		IsGameActive = false;
@@ -507,7 +510,7 @@ public partial class LevelGenerator : Node2D
         _collapseEventTimer+=dt;
         if(_collapseEventTimer>=_collapseEventDelay && (Zone==CaveZone.Basalt || Zone==CaveZone.Crystal))
         {
-            bool started=TryStartCollapseEvent();
+            bool started=Director.PreferDrillShaft(Lap) ? TryStartDrillShaft() : TryStartCollapseEvent();
             _collapseEventTimer=0; _collapseEventDelay=started ? Director.NextFloat(45,60) : 1.25f;
         }
         _pressureTimer+=dt;
@@ -821,6 +824,7 @@ public partial class LevelGenerator : Node2D
         _magmaVent?.Deactivate();
         _corePressure?.Deactivate();
         _collapseEvent?.Deactivate();
+        _drillShaft?.Deactivate();
         foreach(var shooter in _shooters) shooter.Deactivate();
         foreach(var shot in _projectiles) shot.Deactivate();
     }
@@ -890,15 +894,25 @@ public partial class LevelGenerator : Node2D
 
     public bool CanContinueCollapseEvent(float sourceY)=>IsGameActive && _coreRespite<=0 && Mathf.Abs(CurrentDepth-CoreDepthPoint)>6500 && (_player?.Temperature??0)<.55f
         && !IsWaterInZone(_player?.FixedY??-200,400) && !IsWaterInZone(sourceY,Mathf.Max(350,FallSpeed*.8f));
-    public bool TryStartCollapseEvent()
+    private bool CanStartLongColdEvent()
     {
-        if(_collapseEvent==null || LocalWallEventActive || !IsGameActive || (Zone!=CaveZone.Basalt && Zone!=CaveZone.Crystal) || (_hud?.TutorialActive??false) || _cascadeRemaining>0 || (_player?.Temperature??0)>.45f || FallSpeed<=0) return false;
+        if(LocalWallEventActive || !IsGameActive || (Zone!=CaveZone.Basalt && Zone!=CaveZone.Crystal) || (_hud?.TutorialActive??false) || _cascadeRemaining>0 || (_player?.Temperature??0)>.45f || FallSpeed<=0) return false;
         float future=CurrentDepth+FallSpeed*8.5f+Mathf.Max(0,GravityStrength)*1.8f*8.5f*8.5f*.5f;
         if(CurrentDepth<CoreDepthPoint ? future>CoreDepthPoint-6500 : future>TunnelLength-700) return false;
         float sourceY=(_player?.FixedY??-200)+FallSpeed*(CaveCollapseEvent.FirstWarning+CaveCollapseEvent.LeadSeconds);
         if(!CanContinueCollapseEvent(sourceY) || nextWaterInterval-waterTimer<8) return false;
         foreach(var shooter in _shooters) if(shooter.Visible) return false;
         foreach(var shot in _projectiles) if(shot.Visible) return false;
+        return true;
+    }
+    public bool TryStartDrillShaft()
+    {
+        if(_drillShaft==null || !CanStartLongColdEvent()) return false;
+        _drillShaft.Activate(this); return true;
+    }
+    public bool TryStartCollapseEvent()
+    {
+        if(_collapseEvent==null || !CanStartLongColdEvent()) return false;
         int free=0; foreach(var node in obstaclePool) if(!node.Visible) free++;
         if(free<6) return false;
         _collapseEvent.Activate(this); return true;
@@ -952,7 +966,7 @@ public partial class LevelGenerator : Node2D
 
     public bool TryStartCrystalResonance(int side,float y)
     {
-        if(!IsGameActive || Zone!=CaveZone.Crystal || (_crystalResonance?.Active??true) || (_basaltCollapse?.Active??false) || (_magmaVent?.Active??false) || (_corePressure?.Active??false) || (_collapseEvent?.Active??false) || (_hud?.TutorialActive??false) || _coreRespite>0 || _cascadeRemaining>0 || !float.IsFinite(y)) return false;
+        if(!IsGameActive || Zone!=CaveZone.Crystal || (_crystalResonance?.Active??true) || (_basaltCollapse?.Active??false) || (_magmaVent?.Active??false) || (_corePressure?.Active??false) || (_collapseEvent?.Active??false) || (_drillShaft?.Active??false) || (_hud?.TutorialActive??false) || _coreRespite>0 || _cascadeRemaining>0 || !float.IsFinite(y)) return false;
         float sourceDepth=CurrentDepth+y-(_player?.FixedY??-200);
         if(sourceDepth>TunnelLength-500 || RunDirector.ZoneAt(sourceDepth,CoreDepthPoint)!=CaveZone.Crystal || IsWaterInZone(y,Mathf.Max(400,FallSpeed*2.1f))) return false;
         foreach(var shooter in _shooters) if(shooter.Visible) return false;
@@ -980,7 +994,7 @@ public partial class LevelGenerator : Node2D
 
     public bool TryStartBasaltCollapse(int side,float y)
     {
-        if(!IsGameActive || Zone!=CaveZone.Basalt || (_basaltCollapse?.Active??true) || (_crystalResonance?.Active??false) || (_magmaVent?.Active??false) || (_corePressure?.Active??false) || (_collapseEvent?.Active??false) || (_hud?.TutorialActive??false) || _coreRespite>0 || !float.IsFinite(y)) return false;
+        if(!IsGameActive || Zone!=CaveZone.Basalt || (_basaltCollapse?.Active??true) || (_crystalResonance?.Active??false) || (_magmaVent?.Active??false) || (_corePressure?.Active??false) || (_collapseEvent?.Active??false) || (_drillShaft?.Active??false) || (_hud?.TutorialActive??false) || _coreRespite>0 || !float.IsFinite(y)) return false;
         float sourceDepth=CurrentDepth+y-(_player?.FixedY??-200);
         if(sourceDepth>TunnelLength-500 || RunDirector.ZoneAt(sourceDepth,CoreDepthPoint)!=CaveZone.Basalt || IsWaterInZone(y,Mathf.Max(400,FallSpeed*1.9f))) return false;
         foreach(var shooter in _shooters) if(shooter.Visible) return false;
