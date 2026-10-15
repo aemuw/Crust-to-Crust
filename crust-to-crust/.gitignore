@@ -1,6 +1,0 @@
-# Godot 4+ specific ignores
-.godot/
-/android/
-
-# Local gameplay verification captures
-/artifacts/
