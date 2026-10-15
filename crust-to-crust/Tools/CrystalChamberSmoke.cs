@@ -32,7 +32,7 @@ public partial class CrystalChamberSmoke : Node
                 player.Position=new Vector2(level.SafeLaneAt(player.FixedY),player.FixedY);
                 Set(level,"_majorEventZone",CaveZone.Crystal);
                 Set(player,"_temperature",0f); Set(level,"_coreRespite",0f); Set(level,"nextWaterInterval",1000f); Set(level,"waterTimer",0f);
-                Set(level,"_basaltTimer",-100f); Set(level,"_crystalTimer",-100f); Set(level,"_collapseEventTimer",-100f);
+                Set(level,"_forkTimer",-100f);Set(level,"_basaltTimer",-100f); Set(level,"_crystalTimer",-100f); Set(level,"_collapseEventTimer",-100f);
                 Set(level,"_encounterEndDistance",float.MaxValue); typeof(LevelGenerator).GetProperty("Encounter").SetValue(level,EncounterKind.Rest);
                 foreach(var rock in rocks) { rock.Hide(); rock.SetProcess(false); ((Area2D)rock).Monitorable=false; }
             }
