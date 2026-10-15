@@ -11,6 +11,13 @@ public static class CaveArt
     public static readonly Texture2D Rod=Crop("drill_parts",new Rect2(686,230,813,112));
     public static readonly Texture2D Cutter=Crop("drill_parts",new Rect2(146,527,480,479));
     public static readonly Texture2D Cable=Crop("drill_parts",new Rect2(1070,525,137,479));
+    public static readonly Texture2D[] CavitySlices=CreateCavitySlices();
+    private static Texture2D[] CreateCavitySlices()
+    {
+        var slices=new Texture2D[10];
+        for(int i=0;i<slices.Length;i++) slices[i]=Crop("crystal_cavity",new Rect2(121,8+i*195f,648,195));
+        return slices;
+    }
     // All source art grows rightwards from its embedded rock backing.
     public static void Wall(CanvasItem canvas, Texture2D texture, Vector2 root, int side, Rect2 rect, Color tint)
     {
