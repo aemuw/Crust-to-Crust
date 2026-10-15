@@ -19,7 +19,7 @@ public partial class PolishSmoke : Node
             if(DisplayServer.GetName()!="headless") DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.NoFocus,true);
             InputSetup.Ensure();
             Check(InputMap.ActionGetEvents(InputSetup.ToggleLantern).Any(e=>e is InputEventMouseButton mouse && mouse.ButtonIndex==MouseButton.Left),"left mouse button is bound to lantern toggle");
-            Check(CharacterCatalog.Count==18,"six additional mineral skins cover rectangle, diamond and hexagon");
+            Check(CharacterCatalog.Count>=18,"original rectangle, diamond and hexagon mineral skins remain available");
             SaveData.Load(); SaveData.TutorialComplete=true;
             level=GD.Load<PackedScene>("res://Scenes/Main.tscn").Instantiate<LevelGenerator>(); AddChild(level); await Wait(0.1f);
             var player=level.Runner;

@@ -13,7 +13,7 @@ config_version=5
 config/name="Crust-to-Crust"
 run/main_scene="res://Scenes/Main.tscn"
 config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
-config/icon="res://Textures/Generated/hero_cube_v2.png"
+config/icon="res://Textures/PixelSkins/hero_basalt.png"
 
 [display]
 

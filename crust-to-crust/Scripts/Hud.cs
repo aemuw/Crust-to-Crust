@@ -22,6 +22,9 @@ public partial class Hud : CanvasLayer
     private Button _settingsBack, _buySkin, _unlockForm;
     private TextureRect _shopHero;
     private readonly Label[] _skinLabels=new Label[CharacterCatalog.Count];
+    private readonly Label[] _skinPrices=new Label[CharacterCatalog.Count];
+    private Label _heroStatus, _heroForm, _collectionLabel;
+    private static readonly Color WorkshopCyan=new Color("71d8cd"), WorkshopCopper=new Color("c69560");
     private OptionButton _formFilter;
     private TrailPreview _trailPreview;
     private PanelContainer _shopCard;
@@ -214,6 +217,7 @@ public partial class Hud : CanvasLayer
         halo.AnchorLeft=0.48f; halo.AnchorRight=0.93f; halo.AnchorTop=0.16f; halo.AnchorBottom=0.85f;
         halo.Modulate=new Color(0.28f,0.45f,0.40f,0.28f);
         _menuHero=Art(_startMenuPanel,CharacterCatalog.Texture(SaveData.SelectedSkin),Vector2.Zero);
+        _menuHero.TextureFilter=CanvasItem.TextureFilterEnum.Nearest;
         _menuHero.AnchorLeft=0.58f; _menuHero.AnchorRight=0.84f; _menuHero.AnchorTop=0.29f; _menuHero.AnchorBottom=0.69f;
         var best=Text(_startMenuPanel,$"{Mathf.FloorToInt(SaveData.BestDistance):N0} м  ·  рекорд",16,new Color("b3b9ab"));
         best.AnchorLeft=0.09f; best.AnchorTop=0.88f;
@@ -375,21 +379,27 @@ public partial class Hud : CanvasLayer
     {
         _shop=new Control { Name="CharacterShop",Visible=false }; root.AddChild(_shop);
         _shop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        var backdrop=Art(_shop,GD.Load<Texture2D>("res://Textures/ArtRefresh/cave_basalt.png"),Vector2.Zero);
-        backdrop.StretchMode=TextureRect.StretchModeEnum.KeepAspectCovered; backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        backdrop.Modulate=new Color(0.18f,0.19f,0.2f); FullShade(_shop,0.75f);
+        _shop.Theme=BuildWorkshopTheme();
+        var backdrop=new WorkshopBackdrop(); _shop.AddChild(backdrop);
+        backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         var box=CenterCard(_shop,Mathf.Min(900,GetViewport().GetVisibleRect().Size.X-48));
         _shopCard=box.GetParent<PanelContainer>();
+        _shopCard.AddThemeStyleboxOverride("panel",WorkshopPanel(new Color("142025"),WorkshopCopper,20));
         var header=new HBoxContainer(); box.AddChild(header);
-        Text(header,"МАЙСТЕРНЯ",28,new Color("eee5d2")).SizeFlagsHorizontal=Control.SizeFlags.ExpandFill;
-        _walletLabel=Text(header,"",19,Aqua);
+        var heading=new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; header.AddChild(heading);
+        heading.AddThemeConstantOverride("separation",0);
+        Text(heading,"МАЙСТЕРНЯ",28,new Color("f0e4cd"));
+        _collectionLabel=Text(heading,"",12,new Color("92aaa7"));
+        var wallet=new PanelContainer { SizeFlagsVertical=Control.SizeFlags.ShrinkCenter }; header.AddChild(wallet);
+        wallet.AddThemeStyleboxOverride("panel",WorkshopPanel(new Color("0d181b"),new Color("866b46"),10));
+        _walletLabel=Text(wallet,"",17,new Color("ecc67d"));
         var tabs=new TabContainer(); box.AddChild(tabs);
         var forms=new VBoxContainer { Name="Форми" }; tabs.AddChild(forms);
         _formFilter=new OptionButton { CustomMinimumSize=new Vector2(0,42) }; forms.AddChild(_formFilter);
         foreach(BodyForm form in System.Enum.GetValues<BodyForm>()) _formFilter.AddItem(CharacterCatalog.FormName(form));
         _formFilter.ItemSelected+=index=>{ _previewSkin=CharacterCatalog.BaseSkin((BodyForm)index); RefreshShop(); };
         var characters=new HBoxContainer(); forms.AddChild(characters);
-        characters.AddThemeConstantOverride("separation",24);
+        characters.AddThemeConstantOverride("separation",16);
         int columns=GetViewport().GetVisibleRect().Size.X>=1000 ? 3 : 2;
         var skinScroll=new ScrollContainer { Name="SkinScroll",CustomMinimumSize=new Vector2(columns*148+16,320),HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,FollowFocus=true }; characters.AddChild(skinScroll);
         _skinScroll=skinScroll;
@@ -400,24 +410,36 @@ public partial class Hud : CanvasLayer
         {
             int id=i;
             var tile=Button(selection,"",()=>{ _previewSkin=id; RefreshShop(); }); _skinItems[i]=tile;
-            tile.CustomMinimumSize=new Vector2(144,136); tile.TooltipText=CharacterCatalog.Get(i).Name;
+            tile.CustomMinimumSize=new Vector2(144,144); tile.TooltipText=CharacterCatalog.Get(i).Name;
             var icon=Art(tile,CharacterCatalog.Texture(i),Vector2.Zero); icon.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopWide);
-            icon.OffsetLeft=18; icon.OffsetRight=-18; icon.OffsetTop=10; icon.OffsetBottom=94;
-            _skinLabels[i]=Text(tile,CharacterCatalog.Get(i).Name,13); _skinLabels[i].HorizontalAlignment=HorizontalAlignment.Center;
+            icon.TextureFilter=CanvasItem.TextureFilterEnum.Nearest;
+            icon.OffsetLeft=26; icon.OffsetRight=-26; icon.OffsetTop=10; icon.OffsetBottom=86;
+            _skinLabels[i]=Text(tile,CharacterCatalog.Get(i).Name,12); _skinLabels[i].HorizontalAlignment=HorizontalAlignment.Center;
             _skinLabels[i].AutowrapMode=TextServer.AutowrapMode.WordSmart;
-            _skinLabels[i].SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide); _skinLabels[i].OffsetLeft=4; _skinLabels[i].OffsetRight=-4; _skinLabels[i].OffsetTop=-42; _skinLabels[i].OffsetBottom=-2;
+            _skinLabels[i].SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide); _skinLabels[i].OffsetLeft=6; _skinLabels[i].OffsetRight=-6; _skinLabels[i].OffsetTop=-55; _skinLabels[i].OffsetBottom=-23;
+            _skinPrices[i]=Text(tile,"",11); _skinPrices[i].HorizontalAlignment=HorizontalAlignment.Center;
+            _skinPrices[i].SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide);
+            _skinPrices[i].OffsetTop=-24; _skinPrices[i].OffsetBottom=-6;
         }
         var previewCard=new PanelContainer { Name="SkinPreviewCard",SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; characters.AddChild(previewCard);
-        previewCard.AddThemeStyleboxOverride("panel",Card(new Color("172322"),new Color("3d514b"),3));
+        previewCard.AddThemeStyleboxOverride("panel",WorkshopPanel(new Color("101c20"),new Color("47645e"),12));
         var preview=new VBoxContainer { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; previewCard.AddChild(preview);
-        _shopHero=Art(preview,CharacterCatalog.Texture(0),new Vector2(200,225));
-        _heroName=Text(preview,"",20); _heroName.HorizontalAlignment=HorizontalAlignment.Center;
+        preview.AddThemeConstantOverride("separation",8);
+        _heroForm=Text(preview,"",11,WorkshopCopper); _heroForm.HorizontalAlignment=HorizontalAlignment.Center;
+        var stand=new WorkshopBackdrop { DisplayStand=true,CustomMinimumSize=new Vector2(176,174) }; preview.AddChild(stand);
+        _shopHero=Art(stand,CharacterCatalog.Texture(0),Vector2.Zero); _shopHero.TextureFilter=CanvasItem.TextureFilterEnum.Nearest;
+        _shopHero.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        _shopHero.OffsetLeft=40; _shopHero.OffsetRight=-40; _shopHero.OffsetTop=36; _shopHero.OffsetBottom=-36;
+        _heroName=Text(preview,"",18,new Color("eee3cd")); _heroName.HorizontalAlignment=HorizontalAlignment.Center;
         _heroName.AutowrapMode=TextServer.AutowrapMode.WordSmart;
+        _heroStatus=Text(preview,"",12,WorkshopCyan); _heroStatus.HorizontalAlignment=HorizontalAlignment.Center;
+        _heroStatus.AutowrapMode=TextServer.AutowrapMode.WordSmart;
         _buySkin=Button(preview,"",()=>{
             if(SaveData.SelectOrBuySkin(_previewSkin)) GetParent().GetNode<Player>("Player").ApplySkin();
             RefreshShop();
         });
         Primary(_buySkin);
+        _buySkin.AddThemeFontSizeOverride("font_size",16);
         _unlockForm=Button(preview,"",()=>{
             SaveData.SelectOrBuySkin(CharacterCatalog.BaseSkin(CharacterCatalog.Get(_previewSkin).Form));
             GetParent().GetNode<Player>("Player").ApplySkin(); RefreshShop();
@@ -449,8 +471,36 @@ public partial class Hud : CanvasLayer
             _trailItems[i].AutowrapMode=TextServer.AutowrapMode.WordSmart;
             _trailItems[i].CustomMinimumSize=new Vector2(0,54);
         }
-        _shopBack=Button(box,"НАЗАД",CloseShop);
+        _shopBack=Button(box,"НАЗАД ДО ГРИ",CloseShop);
         _shop.Resized+=ResizeShop;
+    }
+    private static StyleBoxFlat WorkshopPanel(Color fill,Color border,int padding=10)
+    {
+        var style=Card(fill,border,0); style.SetBorderWidthAll(2); style.ShadowSize=0;
+        style.ContentMarginLeft=style.ContentMarginRight=padding;
+        style.ContentMarginTop=style.ContentMarginBottom=padding;
+        return style;
+    }
+    private static Theme BuildWorkshopTheme()
+    {
+        var theme=BuildTheme();
+        theme.SetStylebox("normal","Button",WorkshopPanel(new Color("1b2b30"),new Color("3e5756")));
+        theme.SetStylebox("hover","Button",WorkshopPanel(new Color("243b3e"),WorkshopCyan));
+        theme.SetStylebox("pressed","Button",WorkshopPanel(new Color("102b2d"),WorkshopCopper));
+        theme.SetStylebox("disabled","Button",WorkshopPanel(new Color("152124"),new Color("334440")));
+        theme.SetStylebox("focus","Button",WorkshopPanel(new Color(0,0,0,0),WorkshopCopper,0));
+        theme.SetStylebox("normal","OptionButton",WorkshopPanel(new Color("0e1b20"),new Color("52675d"),9));
+        theme.SetStylebox("hover","OptionButton",WorkshopPanel(new Color("203639"),WorkshopCyan,9));
+        foreach(string state in new[] {"tab_unselected","tab_selected","tab_hovered"})
+        {
+            bool selected=state=="tab_selected";
+            var tab=WorkshopPanel(new Color(selected ? "23383b" : "101c20"),new Color(selected ? "71d8cd" : "344a49"),10);
+            tab.BorderWidthTop=tab.BorderWidthLeft=tab.BorderWidthRight=0;
+            theme.SetStylebox(state,"TabBar",tab); theme.SetStylebox(state,"TabContainer",tab);
+        }
+        theme.SetColor("font_selected_color","TabBar",WorkshopCyan);
+        theme.SetColor("font_selected_color","TabContainer",WorkshopCyan);
+        return theme;
     }
     private void ResizeShop()
     {
@@ -464,6 +514,8 @@ public partial class Hud : CanvasLayer
     private void RefreshShop()
     {
         _walletLabel.Text=$"{SaveData.Wallet} монет";
+        int owned=0; for(int i=0;i<CharacterCatalog.Count;i++) if(SaveData.OwnsSkin(i)) owned++;
+        _collectionLabel.Text=$"КОЛЕКЦІЯ {owned} / {CharacterCatalog.Count}   ·   9 ФОРМ";
         for(int i=0;i<UpgradeCatalog.Count;i++)
         {
             int level=SaveData.UpgradeLevel(i);
@@ -473,15 +525,20 @@ public partial class Hud : CanvasLayer
         }
         for(int i=0;i<CharacterCatalog.Count;i++)
         {
-            _skinLabels[i].Text=CharacterCatalog.Get(i).Name+(SaveData.SelectedSkin==i ? " ✓" : "");
-            _skinLabels[i].AddThemeColorOverride("font_color",_previewSkin==i ? Aqua : new Color("c6cec6"));
+            bool selected=SaveData.SelectedSkin==i,unlocked=SaveData.OwnsSkin(i),focused=_previewSkin==i;
+            _skinLabels[i].Text=CharacterCatalog.Get(i).Name;
+            _skinLabels[i].AddThemeColorOverride("font_color",focused ? new Color("f4ead4") : new Color("c4d1ca"));
+            _skinPrices[i].Text=selected ? "● ОБРАНО" : unlocked ? "ВІДКРИТО" : $"{CharacterCatalog.Get(i).Price} монет";
+            _skinPrices[i].AddThemeColorOverride("font_color",selected ? WorkshopCyan : unlocked ? new Color("91ada1") : WorkshopCopper);
             _skinItems[i].Visible=CharacterCatalog.Get(i).Form==CharacterCatalog.Get(_previewSkin).Form;
-            _skinItems[i].AddThemeStyleboxOverride("normal",Card(new Color(_previewSkin==i ? "30372e" : "1b2222"),_previewSkin==i ? Aqua : Edge,5));
+            _skinItems[i].AddThemeStyleboxOverride("normal",WorkshopPanel(new Color(focused ? "263d3e" : "18262b"),focused ? WorkshopCyan : selected ? WorkshopCopper : new Color("3a5050"),6));
         }
         var character=CharacterCatalog.Get(_previewSkin);
         _formFilter.Select((int)character.Form);
         int baseSkin=CharacterCatalog.BaseSkin(character.Form);
         bool locked=!SaveData.OwnsSkin(baseSkin);
+        _heroForm.Text=CharacterCatalog.FormName(character.Form);
+        _heroStatus.Text=SaveData.SelectedSkin==character.Id ? "У СПОРЯДЖЕННІ" : SaveData.OwnsSkin(character.Id) ? "Є У КОЛЕКЦІЇ" : locked && character.Id!=baseSkin ? "СПЕРШУ ВІДКРИЙ ФОРМУ" : $"ЦІНА · {character.Price} МОНЕТ";
         _unlockForm.Visible=locked && character.Id!=baseSkin;
         _unlockForm.Text=$"ВІДКРИТИ {CharacterCatalog.FormName(character.Form)}\n{SaveData.SkinPrice(baseSkin)} монет";
         _unlockForm.Disabled=SaveData.Wallet<SaveData.SkinPrice(baseSkin);

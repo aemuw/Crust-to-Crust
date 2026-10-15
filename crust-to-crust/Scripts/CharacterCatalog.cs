@@ -1,6 +1,6 @@
 using Godot;
 
-public enum BodyForm { Cube, Circle, Triangle, Rectangle, Diamond, Hexagon }
+public enum BodyForm { Cube, Circle, Triangle, Rectangle, Diamond, Hexagon, Pentagon, Octagon, Trapezoid }
 
 public sealed record CharacterDefinition(int Id,string Name,string TexturePath,int Price,float DisplayHeight,float EnvelopeRadius,BodyForm Form=BodyForm.Cube)
 {
@@ -23,6 +23,9 @@ public sealed record CharacterDefinition(int Id,string Name,string TexturePath,i
             BodyForm.Rectangle => new RectangleShape2D { Size=h*2 },
             BodyForm.Diamond => new ConvexPolygonShape2D { Points=new[] { new Vector2(0,-h.Y),new Vector2(h.X,0),new Vector2(0,h.Y),new Vector2(-h.X,0) } },
             BodyForm.Hexagon => new ConvexPolygonShape2D { Points=new[] { new Vector2(-h.X,0),new Vector2(-h.X/2,-h.Y),new Vector2(h.X/2,-h.Y),new Vector2(h.X,0),new Vector2(h.X/2,h.Y),new Vector2(-h.X/2,h.Y) } },
+            BodyForm.Pentagon => new ConvexPolygonShape2D { Points=new[] { new Vector2(0,-h.Y),new Vector2(h.X,-h.Y*0.12f),new Vector2(h.X*0.62f,h.Y),new Vector2(-h.X*0.62f,h.Y),new Vector2(-h.X,-h.Y*0.12f) } },
+            BodyForm.Octagon => new ConvexPolygonShape2D { Points=new[] { new Vector2(-h.X*0.42f,-h.Y),new Vector2(h.X*0.42f,-h.Y),new Vector2(h.X,-h.Y*0.42f),new Vector2(h.X,h.Y*0.42f),new Vector2(h.X*0.42f,h.Y),new Vector2(-h.X*0.42f,h.Y),new Vector2(-h.X,h.Y*0.42f),new Vector2(-h.X,-h.Y*0.42f) } },
+            BodyForm.Trapezoid => new ConvexPolygonShape2D { Points=new[] { new Vector2(-h.X*0.58f,-h.Y),new Vector2(h.X*0.58f,-h.Y),new Vector2(h.X,h.Y),new Vector2(-h.X,h.Y) } },
             _=>new RectangleShape2D { Size=new Vector2(48,48) }
         };
     }
@@ -31,7 +34,7 @@ public sealed record CharacterDefinition(int Id,string Name,string TexturePath,i
 /// <summary>Stable save IDs; art, collision and shop all consume the same definition.</summary>
 public static class CharacterCatalog
 {
-    private const string Root="res://Textures/ArtRefresh/";
+    private const string Root="res://Textures/PixelSkins/";
     private static readonly CharacterDefinition[] Entries =
     {
         new(0,"Базальт",Root+"hero_basalt.png",0,52,46),
@@ -51,12 +54,21 @@ public static class CharacterCatalog
         new(14,"Кобальтовий ромб",Root+"diamond_cobalt.png",1100,56,46,BodyForm.Diamond),
         new(15,"Гранатовий ромб",Root+"diamond_garnet.png",500,56,46,BodyForm.Diamond),
         new(16,"Бронзовий шестикутник",Root+"hex_bronze.png",1800,52,46,BodyForm.Hexagon),
-        new(17,"Малахіт",Root+"hex_malachite.png",500,52,46,BodyForm.Hexagon)
+        new(17,"Малахіт",Root+"hex_malachite.png",500,52,46,BodyForm.Hexagon),
+        new(18,"Кварцовий бастіон",Root+"pentagon_basalt.png",1300,52,46,BodyForm.Pentagon),
+        new(19,"Аметистовий бастіон",Root+"pentagon_amethyst.png",450,52,46,BodyForm.Pentagon),
+        new(20,"Мідний бастіон",Root+"pentagon_copper.png",650,52,46,BodyForm.Pentagon),
+        new(21,"Магмовий октагон",Root+"octagon_magma.png",1600,52,46,BodyForm.Octagon),
+        new(22,"Крижаний октагон",Root+"octagon_ice.png",450,52,46,BodyForm.Octagon),
+        new(23,"Опаловий октагон",Root+"octagon_opal.png",650,52,46,BodyForm.Octagon),
+        new(24,"Обсидіанова платформа",Root+"trapezoid_basalt.png",1200,38,46,BodyForm.Trapezoid),
+        new(25,"Нефритова платформа",Root+"trapezoid_jade.png",450,38,46,BodyForm.Trapezoid),
+        new(26,"Мідна платформа",Root+"trapezoid_copper.png",650,38,46,BodyForm.Trapezoid)
     };
     private static readonly Texture2D[] Textures=new Texture2D[Entries.Length];
     public static int Count=>Entries.Length;
-    public static int BaseSkin(BodyForm form)=>form switch { BodyForm.Circle=>6,BodyForm.Triangle=>9,BodyForm.Rectangle=>12,BodyForm.Diamond=>14,BodyForm.Hexagon=>16,_=>0 };
-    public static string FormName(BodyForm form)=>form switch { BodyForm.Circle=>"КОЛО",BodyForm.Triangle=>"ТРИКУТНИК",BodyForm.Rectangle=>"БРУСОК",BodyForm.Diamond=>"РОМБ",BodyForm.Hexagon=>"ШЕСТИКУТНИК",_=>"КУБ" };
+    public static int BaseSkin(BodyForm form)=>form switch { BodyForm.Circle=>6,BodyForm.Triangle=>9,BodyForm.Rectangle=>12,BodyForm.Diamond=>14,BodyForm.Hexagon=>16,BodyForm.Pentagon=>18,BodyForm.Octagon=>21,BodyForm.Trapezoid=>24,_=>0 };
+    public static string FormName(BodyForm form)=>form switch { BodyForm.Circle=>"КОЛО",BodyForm.Triangle=>"ТРИКУТНИК",BodyForm.Rectangle=>"БРУСОК",BodyForm.Diamond=>"РОМБ",BodyForm.Hexagon=>"ШЕСТИКУТНИК",BodyForm.Pentagon=>"П’ЯТИКУТНИК",BodyForm.Octagon=>"ВОСЬМИКУТНИК",BodyForm.Trapezoid=>"ТРАПЕЦІЯ",_=>"КУБ" };
     public static CharacterDefinition Get(int id)=>Entries[id>=0 && id<Count ? id : 0];
     public static Texture2D Texture(int id)
     {

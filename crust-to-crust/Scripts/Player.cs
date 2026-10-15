@@ -417,6 +417,7 @@ public partial class Player : CharacterBody2D
     public void ApplySkin()
     {
         if (_characterSprite == null) return;
+        _characterSprite.TextureFilter=CanvasItem.TextureFilterEnum.Nearest;
         var character=CharacterCatalog.Get(SaveData.SelectedSkin);
         _characterSprite.Texture = CharacterCatalog.Texture(character.Id);
         _skinSpriteScale = character.RenderSize.Y / _characterSprite.Texture.GetHeight();
