@@ -32,6 +32,7 @@ public partial class Player : CharacterBody2D
 	private bool _isOnFire;
 	private float _coolingGrace;
     private float _temperature;
+    private bool _heatedByGas;
     private ColorRect _flameEffect;
     private ShaderMaterial _flameMaterial;
     private PointLight2D _fireLight;
@@ -456,6 +457,15 @@ public partial class Player : CharacterBody2D
             _smokeParticles.ScaleAmountMin = 0.035f; _smokeParticles.ScaleAmountMax = 0.065f;
         }
     }
+    public void ApplyHotGas(float heat)
+    {
+        if(_state!=State.Playing || _levelGenerator?.IsGameActive!=true || _coolingGrace>0 || !float.IsFinite(heat) || heat<=0) return;
+        _temperature=Mathf.Clamp(_temperature+heat*(1f-SaveData.Insulation*.12f),0,1);
+        _heatedByGas=true;
+        if(_temperature>=1) { Die(DeathCause.Overheat); return; }
+        CatchFire();
+    }
+
     private void UpdateHeating(float dt)
     {
         if (_levelGenerator == null) return;
@@ -474,8 +484,9 @@ public partial class Player : CharacterBody2D
         }
         float distance = Mathf.Abs(_levelGenerator.CurrentDepth - _levelGenerator.CoreDepthPoint);
         float ambient = Mathf.Clamp(1f - distance / HeatStartDistance, 0f, 1f);
-        bool hot = ambient > 0.12f;
-        float rate = inColdGas || hot && _coolingGrace > 0 ? 0f : hot
+        bool ambientHot = ambient > 0.12f;
+        bool hot = ambientHot || _heatedByGas; _heatedByGas=false;
+        float rate = inColdGas || ambientHot && _coolingGrace > 0 ? 0f : ambientHot
             ? (0.035f + 0.055f * ambient) * (1f - SaveData.Insulation * 0.12f) : -0.09f;
         _temperature = Mathf.Clamp(_temperature + rate * dt, 0f, 1f);
         if (_temperature >= 1f) { Die(DeathCause.Overheat); return; }
@@ -514,7 +525,7 @@ public partial class Player : CharacterBody2D
 	{
         if (water && _isOnFire && ++_waterExtinguishes >= 3) SaveData.UnlockMastery(2);
 		_coolingGrace = water ? CryoProtectionSeconds + SaveData.Cooling * 2f : 0f;
-        if (!water) _temperature = 0f;
+        if (!water) { _temperature = 0f; _heatedByGas=false; }
         if (_isOnFire) _coolingSfx?.Play();
         StopFlames();
     }
