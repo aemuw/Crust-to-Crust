@@ -16,7 +16,7 @@ public partial class AudioManager : Node
     private bool _gameplayMusic;
     private AudioStreamPlayer _coreAccent;
     private AudioStreamPlayer _coreRumble;
-    private float _coreTarget, _coreLevel;
+    private float _coreTarget, _coreLevel, _climaxPresence, _appliedClimaxPresence;
     private CaveZone _zone = CaveZone.Basalt;
     private float _zonePitch = 1f;
 
@@ -95,13 +95,14 @@ public partial class AudioManager : Node
         _scoreFade.TweenProperty(_gameScore, "volume_db", -2f, 1.25);
         _scoreFade.Chain().TweenCallback(Callable.From(() => _menuScore.Stop()));
     }
+    public void SetClimaxPresence(float intensity)=>_climaxPresence=float.IsFinite(intensity) ? Mathf.Clamp(intensity,0,1) : 0;
     public void SetZone(CaveZone zone) => _zone = zone;
     public void SetCorePresence(float proximity,bool active)
     {
         _coreTarget = active && float.IsFinite(proximity) ? Mathf.Pow(Mathf.Clamp(proximity,0,1),2)*0.4f : 0f;
         if (!active)
         {
-            _coreLevel=0; _coreRumble?.Stop(); _coreAccent?.Stop();
+            _climaxPresence=0; _coreLevel=0; _coreRumble?.Stop(); _coreAccent?.Stop();
         }
     }
     public override void _ExitTree()
@@ -121,7 +122,13 @@ public partial class AudioManager : Node
         float target = _zone == CaveZone.Core ? 0.78f : _zone == CaveZone.Magma ? 0.88f : _zone == CaveZone.Crystal ? 1.08f : 1f;
         _zonePitch = Mathf.Lerp(_zonePitch,target,1f-Mathf.Exp(-(float)delta*1.2f));
         _music.PitchScale = _zonePitch;
-        _coreLevel = Mathf.MoveToward(_coreLevel,_coreTarget,(float)delta*0.35f);
+        if(_gameplayMusic && _gameScore!=null && (_climaxPresence>0 || _appliedClimaxPresence>0))
+        {
+            _gameScore.VolumeDb=-2f-_climaxPresence*2;
+            _gameScore.PitchScale=1-_climaxPresence*.035f;
+            _appliedClimaxPresence=_climaxPresence;
+        }
+        _coreLevel = Mathf.MoveToward(_coreLevel,Mathf.Max(_coreTarget,_climaxPresence*.46f),(float)delta*0.35f);
         if (_coreRumble!=null)
         {
             if(_coreLevel>0.0001f)

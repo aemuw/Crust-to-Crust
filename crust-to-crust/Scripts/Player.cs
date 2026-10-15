@@ -43,6 +43,7 @@ public partial class Player : CharacterBody2D
     private AudioStreamPlayer _windSfx;
     private PointLight2D _lantern;
     public float Temperature => _temperature;
+    public float CoolingProtectionSeconds=>_coolingGrace;
     public float CollisionEnvelopeRadius => CharacterCatalog.Get(SaveData.SelectedSkin).EnvelopeRadius;
     private CollisionShape2D _bodyShape, _contactShape;
     private Transform2D _previousContactTransform;
