@@ -519,7 +519,7 @@ public partial class Player : CharacterBody2D
         bool ambientHot = ambient > 0.12f;
         bool hot = ambientHot || _heatedByGas; _heatedByGas=false;
         float rate = inColdGas || ambientHot && _coolingGrace > 0 ? 0f : ambientHot
-            ? (0.035f + 0.055f * ambient) * (1f - SaveData.Insulation * 0.12f) : -0.09f;
+            ? (0.07f + 0.11f * ambient) * (1f - SaveData.Insulation * 0.12f) : -0.09f;
         _temperature = Mathf.Clamp(_temperature + rate * dt, 0f, 1f);
         if (_temperature >= 1f) { Die(DeathCause.Overheat); return; }
         if (!_isOnFire && hot && _temperature > 0 && _coolingGrace <= 0) CatchFire();
