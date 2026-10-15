@@ -107,8 +107,11 @@ public partial class LevelGenerator : Node2D
     private BasaltCollapse _basaltCollapse;
     private CrystalResonance _crystalResonance;
     private MagmaVent _magmaVent;
+    private CorePressureWave _corePressure;
+    private float _pressureTimer, _pressureDelay=8f;
+    public float PressureVelocity=>_corePressure?.DriftVelocity??0;
     private float _magmaTimer, _magmaDelay=10f;
-    private bool LocalWallEventActive=>(_basaltCollapse?.Active??false)||(_crystalResonance?.Active??false)||(_magmaVent?.Active??false);
+    private bool LocalWallEventActive=>(_basaltCollapse?.Active??false)||(_crystalResonance?.Active??false)||(_magmaVent?.Active??false)||(_corePressure?.Active??false);
     private float _crystalTimer, _crystalDelay=9f;
     private float _basaltTimer, _basaltDelay=8f;
     private float _batteryTimer, _nextBatteryDelay=10f, _cascadeTimer;
@@ -202,6 +205,7 @@ public partial class LevelGenerator : Node2D
         _basaltCollapse=new BasaltCollapse { Name="BasaltCollapse" }; AddChild(_basaltCollapse);
         _crystalResonance=new CrystalResonance { Name="CrystalResonance" }; AddChild(_crystalResonance);
         _magmaVent=new MagmaVent { Name="MagmaVent" }; AddChild(_magmaVent);
+        _corePressure=new CorePressureWave { Name="CorePressureWave" }; AddChild(_corePressure);
 
 		// Стартовий біом виставляємо до першого кадру, щоб колір не стрибав після Start.
 		UpdateWallColors();
@@ -297,6 +301,7 @@ public partial class LevelGenerator : Node2D
         _basaltCollapse?.Deactivate();
         _crystalResonance?.Deactivate();
         _magmaVent?.Deactivate();
+        _corePressure?.Deactivate();
         _audio?.SetCorePresence(0,false);
         ClearShooters();
 		IsGameActive = false;
@@ -398,6 +403,7 @@ public partial class LevelGenerator : Node2D
     }
     public override void _PhysicsProcess(double delta)
     {
+        _corePressure?.Advance((float)delta);
         if (_tunnelHazardsVisible) UpdateCrystalWaterClearance((float)delta);
     }
 
@@ -494,6 +500,13 @@ public partial class LevelGenerator : Node2D
 
 	private void SpawnTimers(float dt)
 	{
+        _pressureTimer+=dt;
+        if(_pressureTimer>=_pressureDelay && Zone==CaveZone.Core && !(_hud?.TutorialActive??false) && Encounter!=EncounterKind.Cascade && Encounter!=EncounterKind.Sentry)
+        {
+            int direction=Director.NextInt(0,2)==0 ? -1 : 1;
+            bool started=TryStartCorePressure(direction);
+            _pressureTimer=0; _pressureDelay=started ? Director.NextFloat(10,14) : 1.25f;
+        }
         _magmaTimer+=dt;
         if(_magmaTimer>=_magmaDelay && Zone==CaveZone.Magma && !(_hud?.TutorialActive??false) && Encounter!=EncounterKind.Cascade && Encounter!=EncounterKind.Sentry)
         {
@@ -796,6 +809,7 @@ public partial class LevelGenerator : Node2D
         _basaltCollapse?.Deactivate();
         _crystalResonance?.Deactivate();
         _magmaVent?.Deactivate();
+        _corePressure?.Deactivate();
         foreach(var shooter in _shooters) shooter.Deactivate();
         foreach(var shot in _projectiles) shot.Deactivate();
     }
@@ -863,6 +877,15 @@ public partial class LevelGenerator : Node2D
 		return false;
 	}
 
+    public bool CanContinueCorePressure()=>IsGameActive && Zone==CaveZone.Core && _coreRespite<=0 && !IsWaterInZone(_player?.FixedY??-200,Mathf.Max(500,FallSpeed*.75f));
+    public bool TryStartCorePressure(int direction)
+    {
+        if(direction==0 || !CanContinueCorePressure() || _corePressure==null || LocalWallEventActive || (_hud?.TutorialActive??false) || _cascadeRemaining>0) return false;
+        foreach(var shooter in _shooters) if(shooter.Visible) return false;
+        foreach(var shot in _projectiles) if(shot.Visible) return false;
+        _corePressure.Activate(this,direction); return true;
+    }
+
     public bool CanDischargeMagma(float y)=>IsGameActive && Zone==CaveZone.Magma && !IsWaterInZone(y,Mathf.Max(500,FallSpeed*1.8f));
     public bool TryStartMagmaVent(int side,float y)
     {
@@ -876,7 +899,7 @@ public partial class LevelGenerator : Node2D
 
     public bool TryStartCrystalResonance(int side,float y)
     {
-        if(!IsGameActive || Zone!=CaveZone.Crystal || (_crystalResonance?.Active??true) || (_basaltCollapse?.Active??false) || (_magmaVent?.Active??false) || (_hud?.TutorialActive??false) || _coreRespite>0 || _cascadeRemaining>0 || !float.IsFinite(y)) return false;
+        if(!IsGameActive || Zone!=CaveZone.Crystal || (_crystalResonance?.Active??true) || (_basaltCollapse?.Active??false) || (_magmaVent?.Active??false) || (_corePressure?.Active??false) || (_hud?.TutorialActive??false) || _coreRespite>0 || _cascadeRemaining>0 || !float.IsFinite(y)) return false;
         float sourceDepth=CurrentDepth+y-(_player?.FixedY??-200);
         if(sourceDepth>TunnelLength-500 || RunDirector.ZoneAt(sourceDepth,CoreDepthPoint)!=CaveZone.Crystal || IsWaterInZone(y,Mathf.Max(400,FallSpeed*2.1f))) return false;
         foreach(var shooter in _shooters) if(shooter.Visible) return false;
@@ -904,7 +927,7 @@ public partial class LevelGenerator : Node2D
 
     public bool TryStartBasaltCollapse(int side,float y)
     {
-        if(!IsGameActive || Zone!=CaveZone.Basalt || (_basaltCollapse?.Active??true) || (_crystalResonance?.Active??false) || (_magmaVent?.Active??false) || (_hud?.TutorialActive??false) || _coreRespite>0 || !float.IsFinite(y)) return false;
+        if(!IsGameActive || Zone!=CaveZone.Basalt || (_basaltCollapse?.Active??true) || (_crystalResonance?.Active??false) || (_magmaVent?.Active??false) || (_corePressure?.Active??false) || (_hud?.TutorialActive??false) || _coreRespite>0 || !float.IsFinite(y)) return false;
         float sourceDepth=CurrentDepth+y-(_player?.FixedY??-200);
         if(sourceDepth>TunnelLength-500 || RunDirector.ZoneAt(sourceDepth,CoreDepthPoint)!=CaveZone.Basalt || IsWaterInZone(y,Mathf.Max(400,FallSpeed*1.9f))) return false;
         foreach(var shooter in _shooters) if(shooter.Visible) return false;

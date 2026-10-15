@@ -7,14 +7,14 @@ public partial class HazardWarning : Node2D
     private Vector2 _worldSource, _worldTarget, _worldLeft, _worldRight;
     private Color _color;
     private float _progress;
-    private bool _dash, _spread, _collapse;
+    private bool _dash, _spread, _collapse, _pressure;
     private readonly Color _ink=new(0.015f,0.025f,0.03f,0.94f);
     public override void _Ready() { TopLevel=true; ZIndex=20; Material=GameAssets.Unshaded; Hide(); }
-    public void SetCue(bool active,Vector2 source,Vector2 target,float progress,Color color,bool dash=false,bool collapse=false)
+    public void SetCue(bool active,Vector2 source,Vector2 target,float progress,Color color,bool dash=false,bool collapse=false,bool pressure=false)
     {
         Visible=active; if(!active) return;
         _worldSource=source; _worldTarget=target;
-        _progress=Mathf.Clamp(progress,0,1); _color=color; _dash=dash; _spread=false; _collapse=collapse;
+        _progress=Mathf.Clamp(progress,0,1); _color=color; _dash=dash; _spread=false; _collapse=collapse; _pressure=pressure;
         Project();
     }
     public void SetSpread(Vector2 left,Vector2 right)
@@ -42,11 +42,20 @@ public partial class HazardWarning : Node2D
         Rect2 view=GetViewport().GetVisibleRect();
         Vector2 badge=new(Mathf.Clamp(_source.X,view.Position.X+24,view.End.X-24),
             Mathf.Clamp(_source.Y,view.Position.Y+158,view.End.Y-106));
-        if(!_collapse) { Trace(_target,view); if(_spread) { Trace(_left,view); Trace(_right,view); } }
+        if(!_collapse && !_pressure) { Trace(_target,view); if(_spread) { Trace(_left,view); Trace(_right,view); } }
         DrawCircle(badge,17,_ink);
         DrawArc(badge,16,0,Mathf.Tau,32,new Color(_color,0.45f),1,true);
         DrawArc(badge,16,-Mathf.Pi/2,-Mathf.Pi/2+Mathf.Tau*_progress,32,_color,3,true);
-        if(_collapse)
+        if(_pressure)
+        {
+            float sign=_target.X>=_source.X ? 1 : -1;
+            for(int i=0;i<2;i++)
+            {
+                Vector2 p=badge+Vector2.Right*(i*7-5)*sign;
+                DrawPolyline(new[] {p+new Vector2(-sign*3,-5),p+new Vector2(sign*2,0),p+new Vector2(-sign*3,5)},_color,2,true);
+            }
+        }
+        else if(_collapse)
         {
             DrawPolyline(new[] {badge+new Vector2(0,-7),badge+new Vector2(7,6),badge+new Vector2(-7,6),badge+new Vector2(0,-7)},_color,1.5f,true);
             DrawLine(badge+Vector2.Up*2,badge+Vector2.Down*1,_color,2,true); DrawCircle(badge+Vector2.Down*4,1,_color);

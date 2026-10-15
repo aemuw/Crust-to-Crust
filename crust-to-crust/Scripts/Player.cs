@@ -323,6 +323,7 @@ public partial class Player : CharacterBody2D
 			maxX = rightEdge - WallPadding;
 		}
 		float newX = Mathf.Clamp(Position.X + _currentVelocityX * dt, minX, maxX);
+        newX=AddPressureDrift(newX,dt);
         if (Mathf.Abs(newX-Position.X) > 0.05f) _hud?.NotifyTutorialMove();
 		Position = new Vector2(newX, FixedY);
 
@@ -335,6 +336,37 @@ public partial class Player : CharacterBody2D
         _spriteAngle += _angularVelocity*dt;
         if (_characterSprite != null) _characterSprite.Rotation = _spriteAngle + Mathf.Sin(_fxClock*3.1f)*0.025f*fallRatio;
 	}
+
+    private PhysicsShapeQueryParameters2D _pressureQuery;
+    private float AddPressureDrift(float x,float dt)
+    {
+        float velocity=_levelGenerator?.PressureVelocity??0;
+        if(_state!=State.Playing || _levelGenerator?.IsGameActive!=true || Mathf.Abs(velocity)<.001f || _contactShape?.Shape==null) return x;
+        float distance=Mathf.Clamp(velocity,-HorizontalSpeed*.2f,HorizontalSpeed*.2f)*dt;
+        _levelGenerator.GetRockBounds(FixedY,out float left,out float right);
+        float radius=CollisionEnvelopeRadius+8;
+        distance=distance>0 ? Mathf.Min(distance,Mathf.Max(0,right-radius-x)) : Mathf.Max(distance,Mathf.Min(0,left+radius-x));
+        // Wind may bias a safe route, but cannot eject a player from it. Input still has full range.
+        float lane=_levelGenerator.SafeLaneAt(FixedY);
+        if(Mathf.Abs(x-lane)<=SafePassage.HalfWidth+.01f)
+            distance=distance>0 ? Mathf.Min(distance,Mathf.Max(0,lane+SafePassage.HalfWidth-x))
+                : Mathf.Max(distance,Mathf.Min(0,lane-SafePassage.HalfWidth-x));
+        if(Mathf.Abs(distance)<.001f) return x;
+        int steps=Mathf.Max(1,Mathf.CeilToInt(Mathf.Abs(distance)/4));
+        _pressureQuery??=new PhysicsShapeQueryParameters2D { CollisionMask=LayerObstacle,CollideWithAreas=true,CollideWithBodies=false,Margin=2 };
+        _pressureQuery.Shape=_contactShape.Shape;
+        float safe=x;
+        for(int i=1;i<=steps;i++)
+        {
+            float candidate=x+distance*i/steps;
+            Transform2D pose=_contactShape.GlobalTransform; pose.Origin+=new Vector2(candidate-Position.X,0);
+            _pressureQuery.Transform=pose;
+            foreach(var hit in GetWorld2D().DirectSpaceState.IntersectShape(_pressureQuery,32))
+                if(hit["collider"].AsGodotObject() is Area2D area && area.Monitorable && area.IsVisibleInTree()) return safe;
+            safe=candidate;
+        }
+        return safe;
+    }
 
 	private void UpdateCamera(float dt)
 	{
