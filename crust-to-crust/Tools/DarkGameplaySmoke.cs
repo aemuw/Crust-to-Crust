@@ -49,7 +49,8 @@ public partial class DarkGameplaySmoke : Node
             battery.SetKind(PickupKind.Battery); battery.Show(); battery.SetProcess(false);
             var collect=typeof(Player).GetMethod("OnAreaEntered",Hidden);
             collect.Invoke(player,new object[] {battery}); collect.Invoke(player,new object[] {battery});
-            Check(Mathf.IsEqualApprox(charge.Seconds,Mathf.Min(18,before+5)) && SaveData.Wallet==wallet,"battery adds five seconds once, without coins or multiplier");
+            float refill=5+0.5f*SaveData.BatteryEfficiency;
+            Check(Mathf.IsEqualApprox(charge.Seconds,Mathf.Min(charge.Capacity,before+refill)) && SaveData.Wallet==wallet,"battery applies its upgrade-adjusted refill once, without coins or multiplier");
             var mount=new WallShooter(); level.AddChild(mount); mount.Activate(level,0,-1,160); mount.SetPhysicsProcess(false);
             Check(level.TryFireVolley(mount,0,new Vector2(220,-200)),"early upward shot can fire with a reachable dodge");
             var shots=level.GetChildren().OfType<HazardProjectile>().Where(p=>p.Visible).ToArray();

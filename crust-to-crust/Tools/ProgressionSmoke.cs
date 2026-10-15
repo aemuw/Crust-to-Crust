@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Reflection;
 
 public partial class ProgressionSmoke : Node
 {
@@ -53,6 +54,8 @@ public partial class ProgressionSmoke : Node
             float initialInterval = level.CurrentObstacleInterval;
             player.GetNode<Area2D>("Hitbox").Monitoring = false;
             player.ProcessMode = ProcessModeEnum.Disabled;
+            // Disabled callbacks/area monitoring do not block direct projectile hits.
+            typeof(Player).GetField("_invulnerableTimer",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(player,100000f);
             level.TunnelLength = 4000000;
             level.CoreDepthPoint = 2000000;
             Engine.TimeScale = 20f;
@@ -85,6 +88,7 @@ public partial class ProgressionSmoke : Node
             Check(level.IsGameActive && AnyCrystalVisible(), "crystals return only after falling resumes");
             Check(level.Difficulty > 0.99f, "difficulty is preserved between planet traversals");
             player.GetNode<Area2D>("Hitbox").Monitoring = true;
+            typeof(Player).GetField("_invulnerableTimer",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(player,0f);
             var testCrystal = (Sprite2D)GetTree().GetNodesInGroup("TunnelCrystal")[0];
             // Force an actual solid crystal contact. Moving it into the escape route
             // while the generator runs correctly suppresses its collision instead.

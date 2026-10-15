@@ -12,6 +12,7 @@ public partial class LoopSmoke : Node
         LevelGenerator level=null;
         try
         {
+            if(DisplayServer.GetName()!="headless") DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.NoFocus,true);
             SaveData.Load(); SaveData.TutorialComplete=true;
             Engine.TimeScale=12;
             var cases=CompareDivisors ? new[] {(17,2f),(17,2.4f),(17,3f),(17,4f)} : new[] {(17,2.4f),(42,2.4f),(12345,2.4f)};
@@ -30,6 +31,10 @@ public partial class LoopSmoke : Node
                 while(level.Lap<4 && Time.GetTicksMsec()<deadline)
                 {
                     await RealWait(0.035f);
+                    // This fixture measures pacing, so isolate all lethal contacts
+                    // including projectiles and reapply heat protection after emergence.
+                    typeof(Player).GetField("_coolingGrace",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(player,100000f);
+                    typeof(Player).GetField("_invulnerableTimer",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(player,100000f);
                     if(GetTree().Paused) throw new Exception("unexpected paused/dead run on seed "+seed);
                     if(level.Lap!=lap)
                     {

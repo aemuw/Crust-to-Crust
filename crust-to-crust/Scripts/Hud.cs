@@ -40,6 +40,7 @@ public partial class Hud : CanvasLayer
     private int _tutorialStep;
     private bool _tutorialActive;
     private Label _zoneLabel, _coreBanner;
+    private Control _runPanel;
     private float _announcementTime;
     public bool TutorialActive => _tutorialActive;
     public bool TutorialWaterPending => _tutorialActive && _tutorialStep == 2;
@@ -236,6 +237,7 @@ public partial class Hud : CanvasLayer
         }
         else if (level != null) level.SetRunSeed(level.RunSeed);
         _started = true; _startMenuPanel.Hide(); _pauseButton.Show();
+        _runPanel.Show();
         _scoreLabel.Show(); _depthLabel.Show(); _lapLabel.Show(); _speedLabel.Show();
         _hintLabel.Show();
         var tween = CreateTween(); tween.TweenInterval(7f);
@@ -264,17 +266,37 @@ public partial class Hud : CanvasLayer
     }
     private void BuildStatus(Control root)
     {
+        var pixelFont=GD.Load<FontFile>("res://Fonts/Tiny5.ttf");
+        pixelFont.Antialiasing=TextServer.FontAntialiasing.None;
+        pixelFont.SubpixelPositioning=TextServer.SubpixelPositioning.Disabled;
+        _runPanel=new TelemetryPanel { Name="TelemetryPanel",Position=new Vector2(20,18),Size=new Vector2(276,264),Visible=false };
+        root.AddChild(_runPanel);
+        // The two original scene labels keep their paths for gameplay consumers.
+        root.MoveChild(_runPanel,_scoreLabel.GetIndex());
+        Label Readout(Control parent,string text,int fontSize,Color color,Vector2 position)
+        {
+            var label=Text(parent,text,fontSize,color); label.AddThemeFontOverride("font",pixelFont);
+            label.Position=position; return label;
+        }
+        Readout(_runPanel,"ТЕЛЕМЕТРІЯ",16,new Color("89a7a5"),new Vector2(16,11));
+        Readout(_runPanel,"ГЛИБИНА",16,new Color("89a7a5"),new Vector2(16,46));
         foreach (Label label in new[] {_scoreLabel,_depthLabel,_heatLabel})
         {
             label.RemoveThemeFontOverride("font"); label.AddThemeFontSizeOverride("font_size",20);
         }
-        _scoreLabel.Position = new Vector2(24,20); _depthLabel.Position = new Vector2(24,50);
+        _scoreLabel.AddThemeFontOverride("font",pixelFont); _depthLabel.AddThemeFontOverride("font",pixelFont);
+        _scoreLabel.Position = new Vector2(36,138); _depthLabel.Position = new Vector2(36,84);
+        _scoreLabel.AddThemeColorOverride("font_color",new Color("e9bd79"));
+        _depthLabel.AddThemeFontSizeOverride("font_size",40);
+        _depthLabel.AddThemeColorOverride("font_color",new Color("eee8d5"));
+        _scoreLabel.Size=Vector2.Zero; _depthLabel.Size=Vector2.Zero;
+        _depthLabel.Text="0 м";
         _scoreLabel.Text = "МОНЕТИ: 0";
         _scoreLabel.Hide(); _depthLabel.Hide();
-        _lapLabel = Text(root,"КОЛО 1",15,Aqua); _lapLabel.Position = new Vector2(24,80); _lapLabel.Hide();
-        _speedLabel = Text(root,"",16,new Color("a9bbc3")); _speedLabel.Position = new Vector2(24,105); _speedLabel.Hide();
-        _shieldLabel = Text(root,"ЩИТ ГОТОВИЙ",17,Aqua); _shieldLabel.Position = new Vector2(24,134); _shieldLabel.Hide();
-        _bonusLabel = Text(root,"",16,new Color("ffce79")); _bonusLabel.Position = new Vector2(24,162);
+        _lapLabel = Readout(root,"КОЛО 1",16,new Color("71d8cd"),new Vector2(220,29)); _lapLabel.Hide();
+        _speedLabel = Readout(root,"",20,new Color("a7c6c3"),new Vector2(36,163)); _speedLabel.Hide();
+        _shieldLabel = Readout(root,"ЩИТ ГОТОВИЙ",20,new Color("71d8cd"),new Vector2(36,292)); _shieldLabel.Hide();
+        _bonusLabel = Readout(root,"",20,new Color("ffce79"),new Vector2(36,320));
         _lanternStatus=new Control { Name="LanternCharge",Visible=false,AnchorLeft=1,AnchorRight=1,OffsetLeft=-196,OffsetRight=-24,OffsetTop=88,OffsetBottom=142,MouseFilter=Control.MouseFilterEnum.Ignore };
         root.AddChild(_lanternStatus);
         var cell=Art(_lanternStatus,GameAssets.Battery,Vector2.Zero); cell.Position=new Vector2(0,0); cell.Size=new Vector2(25,43);
@@ -286,16 +308,17 @@ public partial class Hud : CanvasLayer
         _chargeBar.AddThemeStyleboxOverride("background",chargeBackground);
         _chargeBar.AddThemeStyleboxOverride("fill",chargeFill); _lanternStatus.AddChild(_chargeBar);
         _journeyBar = new ProgressBar { Name = "JourneyProgress", MinValue = 0, MaxValue = 1, Step = 0.0001,
-            ShowPercentage = false, Position = new Vector2(24,198), Size = new Vector2(220,10), Visible = false,
+            ShowPercentage = false, Position = new Vector2(36,204), Size = new Vector2(244,8), Visible = false,
             MouseFilter = Control.MouseFilterEnum.Ignore };
-        _journeyBar.AddThemeStyleboxOverride("background",Card(Ink,Edge,3));
-        _journeyBar.AddThemeStyleboxOverride("fill",Card(Aqua,Aqua,3)); root.AddChild(_journeyBar);
-        var coreMarker = new ColorRect { Color = new Color("ffb556"),Position = new Vector2(109,0),Size = new Vector2(2,10),MouseFilter = Control.MouseFilterEnum.Ignore };
+        var routeBackground=new StyleBoxFlat { BgColor=new Color("080f13"),BorderColor=new Color("405552") }; routeBackground.SetBorderWidthAll(1);
+        _journeyBar.AddThemeStyleboxOverride("background",routeBackground);
+        _journeyBar.AddThemeStyleboxOverride("fill",new StyleBoxFlat { BgColor=new Color("71d8cd") }); root.AddChild(_journeyBar);
+        var coreMarker = new ColorRect { Color = new Color("e9bd79"),Position = new Vector2(121,-2),Size = new Vector2(2,12),MouseFilter = Control.MouseFilterEnum.Ignore };
         _journeyBar.AddChild(coreMarker);
-        _destinationLabel = Text(root,"",15,Aqua); _destinationLabel.Position = new Vector2(24,214); _destinationLabel.Hide();
-        _zoneLabel = Text(root,"",14,new Color("a9bbc3")); _zoneLabel.Position = new Vector2(24,246); _zoneLabel.Hide();
-        _coreBanner = Text(root,"",17,new Color("ffb556")); _coreBanner.Position = new Vector2(24,282); _coreBanner.Hide();
-        _tutorialPanel = new VBoxContainer { Position = new Vector2(24,360), CustomMinimumSize = new Vector2(260,0),Visible = false };
+        _destinationLabel = Readout(root,"",20,new Color("e9bd79"),new Vector2(36,223)); _destinationLabel.Hide();
+        _zoneLabel = Readout(root,"",16,new Color("89a7a5"),new Vector2(36,254)); _zoneLabel.Hide();
+        _coreBanner = Text(root,"",17,new Color("ffb556")); _coreBanner.Position = new Vector2(24,376); _coreBanner.Hide();
+        _tutorialPanel = new VBoxContainer { Position = new Vector2(24,436), CustomMinimumSize = new Vector2(260,0),Visible = false };
         root.AddChild(_tutorialPanel); Text(_tutorialPanel,"НАВЧАННЯ",13,Aqua);
         _tutorialText = Text(_tutorialPanel,"",16); _tutorialText.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         Button(_tutorialPanel,"ПРОПУСТИТИ",FinishTutorial);
@@ -647,7 +670,7 @@ void fragment() {
         _uiTicker += (float)delta;
         if (_uiTicker < 0.1f) return;
         _uiTicker = 0f;
-        _depthLabel.Text = $"ГЛИБИНА: {Mathf.FloorToInt(_shownDepth):N0} м";
+        _depthLabel.Text = $"{Mathf.FloorToInt(_shownDepth):N0} м";
         if (_started)
         {
             var route = GetParent() as LevelGenerator;
@@ -660,11 +683,12 @@ void fragment() {
         }
         _bonusLabel.Text = (_doubleBonus > 0 ? $"МОНЕТИ ×2  {_doubleBonus:0}с\n" : "") + (_magnetBonus > 0 ? $"МАГНІТ  {_magnetBonus:0}с" : "");
         if (_started && !_finished && GetParent() is LevelGenerator level)
-            _speedLabel.Text = $"ШВИДКІСТЬ  {level.FallSpeed:0}   /   {(level.CurrentDepth < level.CoreDepthPoint ? "ДО ЯДРА" : "ДО ВИХОДУ")}";
+            _speedLabel.Text = $"ШВИДКІСТЬ  {level.FallSpeed:0}";
     }
     public void ShowGameOver(DeathCause cause = DeathCause.Collision)
     {
         if (_finished) return; _finished = true;
+        _runPanel.Hide(); _scoreLabel.Hide(); _depthLabel.Hide(); _lapLabel.Hide(); _speedLabel.Hide();
         bool record = SaveData.SubmitRun(_totalDistance,_coins,_lap);
         string reason = cause == DeathCause.Overheat ? "ПЕРЕГРІВ" : "ЗІТКНЕННЯ";
         string hint = cause == DeathCause.Overheat ? "Пройди крізь холодний газ біля стіни, щоб знизити перегрів."

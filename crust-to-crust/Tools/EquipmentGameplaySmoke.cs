@@ -33,8 +33,13 @@ public partial class EquipmentGameplaySmoke : Node
             level.CurrentDepth=level.CoreDepthPoint;
             typeof(Player).GetField("_coolingGrace",Hidden).SetValue(player,0f);
             typeof(Player).GetField("_temperature",Hidden).SetValue(player,0f);
+            typeof(SaveData).GetProperty("Insulation").SetValue(null,0);
             typeof(Player).GetMethod("UpdateHeating",Hidden).Invoke(player,new object[] {1f});
-            Check(Mathf.IsEqualApprox(player.Temperature,0.09f*0.64f),"bought insulation reduces actual heating by thirty-six percent");
+            float uninsulated=player.Temperature;
+            typeof(SaveData).GetProperty("Insulation").SetValue(null,3);
+            typeof(Player).GetField("_temperature",Hidden).SetValue(player,0f);
+            typeof(Player).GetMethod("UpdateHeating",Hidden).Invoke(player,new object[] {1f});
+            Check(uninsulated>0 && Mathf.IsEqualApprox(player.Temperature,uninsulated*0.64f),"bought insulation reduces actual heating by thirty-six percent");
             typeof(Player).GetMethod("Extinguish",Hidden).Invoke(player,new object[] {true});
             Check(Mathf.IsEqualApprox((float)Field(player,"_coolingGrace"),13),"bought cooling gives thirteen seconds after cryogas");
             Coin Pickup(PickupKind kind,Vector2 at)

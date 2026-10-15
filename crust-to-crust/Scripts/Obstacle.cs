@@ -7,6 +7,7 @@ public partial class Obstacle : Area2D
 {
     [Export] public float speed = 500f;
     private Sprite2D _sprite;
+    private Sprite2D _lowLightDetail;
     private CollisionShape2D _collision;
     private Shape2D[] _shapes;
     private LightOccluder2D _shadow;
@@ -33,6 +34,10 @@ public partial class Obstacle : Area2D
     public override void _Ready()
     {
         GameAssets.Load(); _level = GetParent() as LevelGenerator; _sprite = GetNode<Sprite2D>("RockSprite"); _collision = GetNode<CollisionShape2D>("CollisionShape2D");
+        // A faint texture floor keeps stone readable; the lit sprite still carries
+        // almost all shading. Wheels retain most of their incandescent appearance.
+        _lowLightDetail=new Sprite2D { Name="LowLightDetail",Material=GameAssets.Unshaded };
+        _sprite.AddChild(_lowLightDetail);
         _shapes = new Shape2D[] { new CircleShape2D { Radius = 29 },new RectangleShape2D { Size = new Vector2(26,72) },
             new CircleShape2D { Radius = 49 },new CircleShape2D { Radius = 37 },
             new RectangleShape2D { Size = new Vector2(24,66) },new CircleShape2D { Radius = 24 } };
@@ -71,7 +76,10 @@ public partial class Obstacle : Area2D
         _shadow.Occluder.Polygon = HazardSilhouettes.Outline(_variant);
         _sprite.Scale = Vector2.One*canvas/_sprite.Texture.GetWidth();
         _sprite.Position = Vector2.Zero; _sprite.Rotation = 0f;
-        _sprite.Material = _variant >= 2 && _variant != 4 ? GameAssets.Unshaded : null;
+        _sprite.Material = _variant == 2 ? GameAssets.Unshaded : null;
+        _lowLightDetail.Texture=_sprite.Texture;
+        _lowLightDetail.Visible=_variant!=2;
+        _lowLightDetail.Modulate=new Color(1,1,1,_variant is 3 or 5 ? 0.82f : 0.045f);
         _collision.Shape = _shapes[_variant];
         _glow.Visible = _variant == 2 || _variant == 3 || _variant == 5;
         _glow.Color = _variant == 2 ? new Color("59dfe8") : new Color("ff7028");

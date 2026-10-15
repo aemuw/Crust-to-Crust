@@ -70,18 +70,17 @@ public partial class JourneySmoke : Node
             if ((bool)Get(obstacle, "_dashStarted"))
             {
                 warned += 0.01f;
-                var warningArt = (Label)Get(obstacle,"_warning");
-                Vector2 screen = warningArt.GetGlobalTransformWithCanvas().Origin;
-                visibleWarning &= screen.Y >= 0 && screen.Y <= GetViewport().GetVisibleRect().Size.Y-34;
+                var warningArt = (HazardWarning)Get(obstacle,"_warning");
+                visibleWarning &= warningArt.Visible || !obstacle.WarningActive;
             }
             if (Mathf.Abs(obstacle.Position.X - before) > 0.1f) { dashed = true; break; }
         }
         Check(dashed && warned >= 0.89f && obstacle.Position.Y > player.FixedY,
             "maximum-speed dash warns for 0.9 seconds and starts before reaching the player");
-        Check(visibleWarning,"dash warning stays inside the viewport for the entire warning interval");
-        var warning = (Label)Get(obstacle, "_warning");
+        Check(visibleWarning,"dash cue remains visible throughout its warning interval");
+        var warning = (HazardWarning)Get(obstacle, "_warning");
         obstacle.ConfigureVariant(4);
-        Check(warning.Visible && Mathf.IsEqualApprox(warning.Modulate.A, 1f), "pooled dash resets warning opacity");
+        Check(!warning.Visible && Mathf.IsEqualApprox(warning.Modulate.A, 1f), "pooled dash resets cue visibility and opacity");
         obstacle.Free();
 
         _level.CurrentDepth = _level.CoreDepthPoint; Call(_level, "SpawnTimers", 0f);
