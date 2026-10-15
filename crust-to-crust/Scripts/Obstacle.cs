@@ -12,6 +12,7 @@ public partial class Obstacle : Area2D
     private LightOccluder2D _shadow;
     private PointLight2D _glow;
     private HazardWarning _warning;
+    private Line2D _rubbleEdge;
     private Vector2 _targetScale = Vector2.One;
     private float _appearTimer, _phase, _anchorX, _frequency, _amplitude, _spin, _driftVelocity, _dashTarget;
     private int _variant;
@@ -40,6 +41,8 @@ public partial class Obstacle : Area2D
         for(int i=0;i<4;i++) { _pieces[i]=new Sprite2D { RegionEnabled=true,Visible=false }; AddChild(_pieces[i]); }
         _glow = CaveLighting.Light(new Color("ff7028"),0.32f,0.40f,false); AddChild(_glow); _glow.Visible = false;
         _warning=new HazardWarning { Name="HazardWarning" }; AddChild(_warning);
+        _rubbleEdge=new Line2D { Name="RubbleEdge",Closed=true,Width=1.1f,DefaultColor=new Color(.32f,.28f,.22f,.65f),Material=GameAssets.Unshaded,Visible=false,Antialiased=true };
+        AddChild(_rubbleEdge);
     }
     public static HazardMotion SampleMotion(RunDirector director)
     {
@@ -51,6 +54,7 @@ public partial class Obstacle : Area2D
     public void ConfigureVariant(int variant,float targetX = 0f,HazardMotion? motion = null)
     {
         _crystalFragment=false;
+        _rubbleEdge.Hide();
         _safeSide = 0;
         _variant = Mathf.Clamp(variant,0,5); _phase = 0f; _dashStarted = false; _dashCount=0; _dashTarget = targetX;
         _retiring=false; _retireClock=0;
@@ -82,11 +86,15 @@ public partial class Obstacle : Area2D
         ConfigureVariant(2,0,new HazardMotion(0,0,.8f,0,0));
         _crystalFragment=true; ZIndex=0; _glow.Energy=.2f;
     }
-    public bool ProtectPassage(int side,float scale)
+    public void MarkCollapseDebris()
+    {
+        _rubbleEdge.Points=HazardSilhouettes.Outline(0); _rubbleEdge.Show();
+    }
+    public bool ProtectPassage(int side,float scale,float? scrollFactor=null)
     {
         _safeSide = side < 0 ? -1 : 1;
         _protectedRadius = SafePassage.ColliderRadius(_variant)*scale*SafePassage.AppearOvershoot;
-        _scrollFactor=DefaultScroll;
+        _scrollFactor=scrollFactor??DefaultScroll;
         if(_level!=null && !_level.CanHazardTraverse(_safeSide,Position.Y,_protectedRadius,_scrollFactor))
         {
             // Match wall scrolling when a faster/slower vertical path would pinch later.
@@ -216,6 +224,7 @@ public partial class Obstacle : Area2D
         if(_retiring) return;
         if(!CaveViewport.Intersects(this,Mathf.Max(_protectedRadius,90))) { Deactivate(); return; }
         _retiring=true; _retireClock=0;
+        _rubbleEdge.Hide();
         SetDeferred("monitorable",false); _collision.SetDeferred("disabled",true);
         _warning.Hide(); _shadow.Hide();
         Vector2 half=_sprite.Texture.GetSize()/2;
